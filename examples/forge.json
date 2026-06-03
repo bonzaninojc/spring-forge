@@ -1,0 +1,237 @@
+{
+  "project": {
+    "basePackage": "com.myapp",
+    "name": "MyEcommerceApp",
+    "database": "postgres",
+    "generateMigrations": true,
+    "generateMappers": true,
+    "generateFrontend": true,
+    "generateRabbitMQ": true,
+    "generateOpenApi": true,
+    "generateSpringEvents": true,
+    "generateScheduled": true,
+    "generateTests": true,
+    "generateSecurity": true
+  },
+  "entities": [
+    {
+      "name": "Category",
+      "tableName": "categories",
+      "auditable": true,
+      "softDelete": false,
+      "apiPath": "/api/v1/categories",
+      "openApiTags": ["Categories"],
+      "roles": ["ADMIN", "USER"],
+      "fields": [
+        { "name": "name",        "type": "String",  "required": true,  "unique": true, "maxLength": 100 },
+        { "name": "description", "type": "String",  "required": false, "maxLength": 500 },
+        { "name": "active",      "type": "Boolean", "required": false, "defaultValue": "true" }
+      ],
+      "filters": [
+        { "name": "name", "type": "String", "label": "Nome" },
+        { "name": "active", "type": "Boolean", "label": "Ativo" }
+      ],
+      "relations": [],
+      "actions": []
+    },
+    {
+      "name": "Product",
+      "tableName": "products",
+      "auditable": true,
+      "softDelete": true,
+      "apiPath": "/api/v1/products",
+      "openApiTags": ["Products", "Inventory"],
+      "roles": ["ADMIN", "MANAGER"],
+      "fields": [
+        { "name": "name",        "type": "String",     "required": true,  "maxLength": 200, "minLength": 3 },
+        { "name": "description", "type": "String",     "required": false, "maxLength": 2000 },
+        { "name": "price",       "type": "BigDecimal", "required": true,  "validations": ["@jakarta.validation.constraints.DecimalMin(value = \"0.01\")"] },
+        { "name": "stock",       "type": "Integer",    "required": true,  "validations": ["@jakarta.validation.constraints.Min(0)"] },
+        { "name": "sku",         "type": "String",     "required": true,  "unique": true, "maxLength": 50 },
+        { "name": "status",      "type": "Enum",       "enumValues": ["ACTIVE", "INACTIVE", "OUT_OF_STOCK"], "required": true }
+      ],
+      "filters": [
+        { "name": "name", "type": "String", "label": "Nome do produto" },
+        { "name": "status", "type": "Enum", "enumValues": ["ACTIVE", "INACTIVE", "OUT_OF_STOCK"], "label": "Status" },
+        { "name": "priceMin", "type": "BigDecimal", "label": "Preço mínimo" },
+        { "name": "priceMax", "type": "BigDecimal", "label": "Preço máximo" }
+      ],
+      "relations": [
+        { "type": "ManyToOne", "targetEntity": "Category", "fieldName": "category", "fetch": "LAZY", "cascade": "MERGE,PERSIST" }
+      ],
+      "queues": [
+        {
+          "name": "product.stock.updated",
+          "exchange": "products",
+          "routingKey": "product.stock.updated",
+          "durable": true,
+          "direction": "PUBLISH"
+        }
+      ],
+      "actions": [
+        {
+          "name": "activate",
+          "description": "Ativa um produto inativo. Valida estoque mínimo antes de ativar.",
+          "httpMethod": "POST",
+          "apiPath": "/{id}/activate",
+          "requiresId": true,
+          "roles": ["ADMIN"],
+          "openApiResponses": [
+            { "code": 422, "description": "Estoque abaixo do mínimo exigido" }
+          ],
+          "event": {
+            "name": "ProductActivatedEvent",
+            "generateListener": true,
+            "async": true,
+            "description": "Publicado quando um produto é ativado com sucesso"
+          },
+          "request": [
+            { "name": "reason",       "type": "String",  "required": true,  "maxLength": 255 },
+            { "name": "minimumStock", "type": "Integer", "required": false }
+          ],
+          "response": [
+            { "name": "activated", "type": "Boolean" },
+            { "name": "message",   "type": "String"  },
+            { "name": "newStatus", "type": "String"  }
+          ]
+        },
+        {
+          "name": "adjustStock",
+          "description": "Ajusta estoque (positivo=entrada, negativo=saída). Publica evento na fila RabbitMQ.",
+          "httpMethod": "PATCH",
+          "apiPath": "/{id}/stock",
+          "requiresId": true,
+          "roles": ["ADMIN", "MANAGER"],
+          "queues": [
+            {
+              "name": "product.stock.adjusted",
+              "exchange": "products",
+              "routingKey": "product.stock.adjusted",
+              "durable": true,
+              "direction": "BOTH",
+              "deadLetterExchange": "products.dlx",
+              "retryTtlMs": 60000
+            }
+          ],
+          "request": [
+            { "name": "quantity", "type": "Integer", "required": true  },
+            { "name": "reason",   "type": "String",  "required": true, "maxLength": 255 },
+            { "name": "operator", "type": "String",  "required": false }
+          ],
+          "response": [
+            { "name": "previousStock", "type": "Integer"       },
+            { "name": "currentStock",  "type": "Integer"       },
+            { "name": "adjustedAt",    "type": "LocalDateTime" }
+          ]
+        },
+        {
+          "name": "syncInventory",
+          "description": "Sincroniza estoque com sistema externo. Executado automaticamente toda noite às 3h.",
+          "scheduled": true,
+          "scheduledCron": "0 0 3 * * *",
+          "requiresId": false,
+          "request": [],
+          "response": [
+            { "name": "synced",   "type": "Integer" },
+            { "name": "failed",   "type": "Integer" },
+            { "name": "syncedAt", "type": "LocalDateTime" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Order",
+      "tableName": "orders",
+      "auditable": true,
+      "softDelete": false,
+      "apiPath": "/api/v1/orders",
+      "openApiTags": ["Orders"],
+      "roles": ["ADMIN"],
+      "fields": [
+        { "name": "customerName",  "type": "String",     "required": true,  "maxLength": 200 },
+        { "name": "customerEmail", "type": "String",     "required": true,  "maxLength": 200, "validations": ["@jakarta.validation.constraints.Email"] },
+        { "name": "total",         "type": "BigDecimal", "required": true,  "inRequest": false },
+        { "name": "status",        "type": "Enum",       "enumValues": ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"], "required": true },
+        { "name": "notes",         "type": "String",     "required": false, "maxLength": 1000 }
+      ],
+      "filters": [
+        { "name": "customerName", "type": "String", "label": "Cliente" },
+        { "name": "status", "type": "Enum", "enumValues": ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"], "label": "Status" },
+        { "name": "totalMin", "type": "BigDecimal", "label": "Total mínimo" },
+        { "name": "totalMax", "type": "BigDecimal", "label": "Total máximo" }
+      ],
+      "relations": [],
+      "queues": [
+        {
+          "name": "order.notifications",
+          "exchange": "orders",
+          "routingKey": "order.status",
+          "durable": true,
+          "direction": "CONSUME"
+        }
+      ],
+      "actions": [
+        {
+          "name": "confirm",
+          "description": "Confirma pedido pendente e inicia processamento. Publica evento de confirmação.",
+          "httpMethod": "POST",
+          "apiPath": "/{id}/confirm",
+          "requiresId": true,
+          "roles": ["ADMIN"],
+          "event": {
+            "name": "OrderConfirmedEvent",
+            "generateListener": true,
+            "async": false,
+            "description": "Publicado quando um pedido é confirmado"
+          },
+          "queues": [
+            {
+              "name": "order.confirmed",
+              "exchange": "orders",
+              "routingKey": "order.confirmed",
+              "durable": true,
+              "direction": "PUBLISH"
+            }
+          ],
+          "request": [],
+          "response": [
+            { "name": "confirmed",   "type": "Boolean"       },
+            { "name": "confirmedAt", "type": "LocalDateTime" },
+            { "name": "message",     "type": "String"        }
+          ]
+        },
+        {
+          "name": "cancel",
+          "description": "Cancela pedido e estorna estoque dos itens.",
+          "httpMethod": "POST",
+          "apiPath": "/{id}/cancel",
+          "requiresId": true,
+          "roles": ["ADMIN", "MANAGER"],
+          "openApiResponses": [
+            { "code": 422, "description": "Pedido já foi entregue e não pode ser cancelado" }
+          ],
+          "request": [
+            { "name": "reason",         "type": "String",  "required": true, "maxLength": 500 },
+            { "name": "notifyCustomer", "type": "Boolean", "required": false }
+          ],
+          "response": [
+            { "name": "cancelled",   "type": "Boolean"       },
+            { "name": "cancelledAt", "type": "LocalDateTime" }
+          ]
+        },
+        {
+          "name": "processExpiredOrders",
+          "description": "Cancela automaticamente pedidos pendentes há mais de 24h.",
+          "scheduled": true,
+          "scheduledCron": "0 0 1 * * *",
+          "requiresId": false,
+          "request": [],
+          "response": [
+            { "name": "processed", "type": "Integer" },
+            { "name": "ranAt",     "type": "LocalDateTime" }
+          ]
+        }
+      ]
+    }
+  ]
+}
