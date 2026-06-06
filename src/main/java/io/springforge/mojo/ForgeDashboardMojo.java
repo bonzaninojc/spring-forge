@@ -18,8 +18,11 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * Goal "ui" — sobe um dashboard web local para editar o forge.json visualmente.
@@ -65,6 +68,7 @@ public class ForgeDashboardMojo extends AbstractMojo {
             server.createContext("/api/forge", this::handleForgeApi);
             server.createContext("/api/generate", this::handleGenerate);
             server.createContext("/api/validate", this::handleValidate);
+            server.createContext("/api/reverse", this::handleReverse);
             server.createContext("/api/heartbeat", this::handleHeartbeat);
 
             // Serve frontend estático
@@ -158,12 +162,34 @@ public class ForgeDashboardMojo extends AbstractMojo {
         if (!"POST".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
 
         try {
+            // Lê body para obter filtro de entidades (opcional)
+            String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            String entitiesFilter = "";
+            if (body != null && !body.isBlank()) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> reqBody = mapper.readValue(body, Map.class);
+                    Object ent = reqBody.get("entities");
+                    if (ent instanceof List<?> list && !list.isEmpty()) {
+                        entitiesFilter = list.stream()
+                            .map(Object::toString)
+                            .collect(Collectors.joining(","));
+                    }
+                } catch (Exception ignored) {}
+            }
+
             ForgeJsonParser parser = new ForgeJsonParser();
             ForgeDefinition def = parser.parse(inputFile);
-            int entityCount = def.getEntities().size();
+            int entityCount = entitiesFilter.isEmpty()
+                ? def.getEntities().size()
+                : entitiesFilter.split(",").length;
 
             // Executa geração via ProcessBuilder
-            ProcessBuilder pb = new ProcessBuilder("mvn", "spring-forge:generate", "-q");
+            List<String> cmd = new ArrayList<>(List.of("mvn", "spring-forge:generate", "-q"));
+            if (!entitiesFilter.isEmpty()) {
+                cmd.add("-Dforge.entities=" + entitiesFilter);
+            }
+            ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.directory(project.getBasedir());
             pb.redirectErrorStream(true);
             Process proc = pb.start();
@@ -178,6 +204,67 @@ public class ForgeDashboardMojo extends AbstractMojo {
                 ));
             } else {
                 sendJson(ex, 500, Map.of("error", "Falha na geração", "output", output));
+            }
+        } catch (Exception e) {
+            sendJson(ex, 500, Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // POST /api/reverse — reverse engineering de banco de dados
+    // ═══════════════════════════════════════════════════════════════
+
+    private void handleReverse(HttpExchange ex) throws IOException {
+        setCors(ex);
+        if ("OPTIONS".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(204, -1); return; }
+        if (!"POST".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
+
+        try {
+            String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> params = mapper.readValue(body, Map.class);
+
+            String jdbcUrl = (String) params.get("jdbcUrl");
+            String jdbcUser = (String) params.get("jdbcUser");
+            String jdbcPassword = (String) params.getOrDefault("jdbcPassword", "");
+            String basePackage = (String) params.getOrDefault("basePackage", "com.myapp");
+            String schema = (String) params.getOrDefault("schema", "");
+
+            if (jdbcUrl == null || jdbcUrl.isBlank() || jdbcUser == null || jdbcUser.isBlank()) {
+                sendJson(ex, 400, Map.of("error", "jdbcUrl e jdbcUser são obrigatórios"));
+                return;
+            }
+
+            // Executa via ProcessBuilder para reutilizar o Mojo existente
+            List<String> cmd = new ArrayList<>(List.of(
+                "mvn", "spring-forge:reverse", "-q",
+                "-Dforge.jdbcUrl=" + jdbcUrl,
+                "-Dforge.jdbcUser=" + jdbcUser,
+                "-Dforge.jdbcPassword=" + jdbcPassword,
+                "-Dforge.basePackage=" + basePackage,
+                "-Dforge.output=" + inputFile.getPath()
+            ));
+            if (schema != null && !schema.isBlank()) {
+                cmd.add("-Dforge.schema=" + schema);
+            }
+
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.directory(project.getBasedir());
+            pb.redirectErrorStream(true);
+            Process proc = pb.start();
+            String output = new String(proc.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            int exitCode = proc.waitFor();
+
+            if (exitCode == 0) {
+                // Relê o forge.json gerado para devolver ao frontend
+                String content = Files.readString(inputFile.toPath(), StandardCharsets.UTF_8);
+                sendJson(ex, 200, Map.of(
+                    "success", true,
+                    "message", "Reverse engineering concluído! forge.json atualizado.",
+                    "forge", mapper.readValue(content, Object.class)
+                ));
+            } else {
+                sendJson(ex, 500, Map.of("error", "Falha no reverse engineering", "output", output));
             }
         } catch (Exception e) {
             sendJson(ex, 500, Map.of("error", e.getMessage()));

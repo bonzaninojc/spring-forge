@@ -50,6 +50,13 @@
     .btn-danger:hover { background: #fecaca; }
     .btn-add { background: #dbeafe; color: #1976d2; }
     .btn-add:hover { background: #bfdbfe; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 999; }
+    .modal { background: #fff; border-radius: 12px; padding: 24px; min-width: 340px; max-width: 440px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: #1e293b; }
+    .modal .entity-list { max-height: 260px; overflow-y: auto; margin-bottom: 14px; }
+    .modal .entity-item { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 13px; }
+    .modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .modal .modal-actions button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
     .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 500; z-index: 1000; animation: slideIn 0.25s; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .toast.success { background: #16a34a; }
     .toast.error { background: #dc2626; }
@@ -84,7 +91,8 @@ const api = {
   async getForge() { const r = await fetch('/api/forge'); if (!r.ok) throw new Error(); return r.json(); },
   async saveForge(d) { return (await fetch('/api/forge', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(d) })).json(); },
   async validate(d) { return (await fetch('/api/validate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(d) })).json(); },
-  async generate() { return (await fetch('/api/generate', { method: 'POST' })).json(); }
+  async generate(entities) { return (await fetch('/api/generate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(entities ? { entities } : {}) })).json(); },
+  async reverse(params) { return (await fetch('/api/reverse', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(params) })).json(); }
 };
 
 function Toast({ message, type, onClose }) {
@@ -346,12 +354,93 @@ function JsonPage({ forge, setForge }) {
 }
 
 // ═══════════════════════════════════════
+// Reverse Engineering Page
+// ═══════════════════════════════════════
+function ReversePage({ onResult, show }) {
+  const [params, setParams] = useState({ jdbcUrl:'', jdbcUser:'', jdbcPassword:'', basePackage:'com.myapp', schema:'' });
+  const [loading, setLoading] = useState(false);
+  const set = (k,v) => setParams({...params,[k]:v});
+
+  const run = async () => {
+    if (!params.jdbcUrl || !params.jdbcUser) { show('jdbcUrl e jdbcUser são obrigatórios','error'); return; }
+    setLoading(true);
+    try {
+      const r = await api.reverse(params);
+      if (r.success) { onResult(r.forge); show(r.message,'success'); }
+      else show(r.error||'Erro no reverse engineering','error');
+    } catch(e) { show('Erro de conexão','error'); }
+    setLoading(false);
+  };
+
+  return (<div>
+    <div className="page-title">🔀 Reverse Engineering</div>
+    <div className="card">
+      <h3>🗄️ Conexão com Banco de Dados</h3>
+      <p style={{fontSize:12,color:'#64748b',marginBottom:14}}>Conecte-se a um banco existente para gerar o forge.json automaticamente.</p>
+      <div className="form-grid">
+        <div className="form-group" style={{gridColumn:'1/-1'}}><label>JDBC URL</label><input value={params.jdbcUrl} onChange={e=>set('jdbcUrl',e.target.value)} placeholder="jdbc:postgresql://localhost:5432/mydb"/></div>
+        <div className="form-group"><label>Usuário</label><input value={params.jdbcUser} onChange={e=>set('jdbcUser',e.target.value)} placeholder="postgres"/></div>
+        <div className="form-group"><label>Senha</label><input type="password" value={params.jdbcPassword} onChange={e=>set('jdbcPassword',e.target.value)}/></div>
+        <div className="form-group"><label>Base Package</label><input value={params.basePackage} onChange={e=>set('basePackage',e.target.value)} placeholder="com.myapp"/></div>
+        <div className="form-group"><label>Schema</label><input value={params.schema} onChange={e=>set('schema',e.target.value)} placeholder="(default do driver)"/></div>
+      </div>
+      <button className="btn-sm btn-add" onClick={run} disabled={loading} style={{marginTop:14,padding:'8px 18px',fontSize:13,opacity:loading?0.6:1}}>
+        {loading ? '⏳ Analisando...' : '🔀 Executar Reverse Engineering'}
+      </button>
+    </div>
+    <div className="card">
+      <h3>ℹ️ O que detecta automaticamente</h3>
+      <ul style={{fontSize:12,color:'#475569',lineHeight:1.8,paddingLeft:20}}>
+        <li>Tabelas → entidades (PascalCase)</li>
+        <li>Colunas → fields (camelCase) com tipos mapeados</li>
+        <li>Foreign keys → relations ManyToOne</li>
+        <li><code>created_at</code> / <code>updated_at</code> → auditável</li>
+        <li><code>deleted_at</code> → soft delete</li>
+        <li>Unique constraints → <code>unique: true</code></li>
+      </ul>
+    </div>
+  </div>);
+}
+
+// ═══════════════════════════════════════
+// Generate Modal (entity selection)
+// ═══════════════════════════════════════
+function GenerateModal({ entities, onGenerate, onClose }) {
+  const [selected, setSelected] = useState(entities.map(e => e.name));
+  const toggle = (name) => setSelected(s => s.includes(name) ? s.filter(n => n !== name) : [...s, name]);
+  const all = selected.length === entities.length;
+  const toggleAll = () => setSelected(all ? [] : entities.map(e => e.name));
+
+  return (<div className="modal-overlay" onClick={onClose}>
+    <div className="modal" onClick={e => e.stopPropagation()}>
+      <h3>▶ Gerar Código</h3>
+      <div style={{fontSize:12,color:'#64748b',marginBottom:10}}>Selecione as entidades para gerar:</div>
+      <div className="entity-list">
+        <div className="entity-item" style={{borderBottom:'1px solid #e2e8f0',paddingBottom:6,marginBottom:4}}>
+          <input type="checkbox" checked={all} onChange={toggleAll}/><label style={{fontSize:12,fontWeight:600,cursor:'pointer'}} onClick={toggleAll}>Todas ({entities.length})</label>
+        </div>
+        {entities.map(e => (<div key={e.name} className="entity-item">
+          <input type="checkbox" checked={selected.includes(e.name)} onChange={() => toggle(e.name)} id={`gen-${e.name}`}/>
+          <label htmlFor={`gen-${e.name}`} style={{cursor:'pointer'}}>{e.name}</label>
+          <span style={{marginLeft:'auto',fontSize:11,color:'#94a3b8'}}>{(e.fields||[]).length} campos</span>
+        </div>))}
+      </div>
+      <div className="modal-actions">
+        <button onClick={onClose} style={{background:'#f1f5f9',color:'#475569'}}>Cancelar</button>
+        <button onClick={() => onGenerate(selected)} disabled={!selected.length} style={{background:'#1976d2',color:'#fff',opacity:selected.length?1:0.5}}>Gerar {selected.length} entidade(s)</button>
+      </div>
+    </div>
+  </div>);
+}
+
+// ═══════════════════════════════════════
 // Main App
 // ═══════════════════════════════════════
 function App() {
   const [forge, setForge] = useState(null);
   const [page, setPage] = useState('project'); // project | entity:N | actions:N | queues:N | json
   const [toast, setToast] = useState(null);
+  const [showGenModal, setShowGenModal] = useState(false);
 
   const show = (msg, type='success') => setToast({message:msg, type});
 
@@ -363,7 +452,15 @@ function App() {
 
   const save = async () => { const r = await api.saveForge(forge); show(r.success?'Salvo!':r.error, r.success?'success':'error'); };
   const validate = async () => { const r = await api.validate(forge); show(r.valid?r.message:r.message, r.valid?'success':'error'); };
-  const generate = async () => { show('Gerando...','info'); await save(); const r = await api.generate(); show(r.success?r.message:r.error, r.success?'success':'error'); };
+  const openGenerate = () => setShowGenModal(true);
+  const generate = async (selected) => {
+    setShowGenModal(false);
+    show('Gerando...','info');
+    await save();
+    const ents = selected.length === forge.entities.length ? null : selected;
+    const r = await api.generate(ents);
+    show(r.success?r.message:r.error, r.success?'success':'error');
+  };
 
   const addEntity = () => {
     const name = prompt('Nome (PascalCase):');
@@ -390,6 +487,7 @@ function App() {
 
       <div className="nav-section">Geral</div>
       <div className={`nav-item ${page==='project'?'active':''}`} onClick={()=>setPage('project')}><span className="icon">⚙️</span>Projeto</div>
+      <div className={`nav-item ${page==='reverse'?'active':''}`} onClick={()=>setPage('reverse')}><span className="icon">🔀</span>Reverse DB</div>
       <div className={`nav-item ${page==='json'?'active':''}`} onClick={()=>setPage('json')}><span className="icon">📄</span>JSON</div>
 
       <div className="nav-section">Entidades</div>
@@ -409,7 +507,7 @@ function App() {
       <div className="nav-item" onClick={addEntity} style={{color:'#5b8fb9',borderTop:'1px dashed rgba(255,255,255,0.1)',marginTop:8,paddingTop:10}}><span className="icon">➕</span>Nova Entidade</div>
 
       <div className="actions-bar">
-        <button className="btn-gen" onClick={generate}>▶ Gerar Código</button>
+        <button className="btn-gen" onClick={openGenerate}>▶ Gerar Código</button>
         <button className="btn-sec" onClick={validate}>✓ Validar</button>
         <button className="btn-sec" onClick={save}>💾 Salvar</button>
       </div>
@@ -417,6 +515,7 @@ function App() {
 
     <div className="main">
       {page==='project' && <ProjectPage project={forge.project} onChange={p=>setForge({...forge,project:p})}/>}
+      {page==='reverse' && <ReversePage onResult={f=>{ setForge(f); setPage('project'); }} show={show}/>}
       {page==='json' && <JsonPage forge={forge} setForge={setForge}/>}
       {page.startsWith('entity:') && currentEntity && <EntityPage entity={currentEntity} allNames={entityNames} onChange={e=>updEntity(selectedIdx,e)}/>}
       {page.startsWith('actions:') && currentEntity && <ActionsPage entity={currentEntity} onChange={e=>updEntity(selectedIdx,e)}/>}
@@ -425,6 +524,7 @@ function App() {
     </div>
 
     {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
+    {showGenModal && <GenerateModal entities={forge.entities} onGenerate={generate} onClose={()=>setShowGenModal(false)}/>}
   </div>);
 }
 
