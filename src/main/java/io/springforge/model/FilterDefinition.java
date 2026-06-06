@@ -14,10 +14,10 @@ import java.util.List;
  *   - CONTAINS: LIKE %...% (default para String)
  *   - STARTS_WITH: LIKE ...%
  *   - ENDS_WITH: LIKE %...
- *   - GREATER_THAN: >
- *   - GREATER_THAN_OR_EQUAL: >= (default para sufixo Min)
- *   - LESS_THAN: <
- *   - LESS_THAN_OR_EQUAL: <= (default para sufixo Max)
+ *   - GREATER_THAN: &gt;
+ *   - GREATER_THAN_OR_EQUAL: &gt;= (default para sufixo Min)
+ *   - LESS_THAN: &lt;
+ *   - LESS_THAN_OR_EQUAL: &lt;= (default para sufixo Max)
  *   - IN: valor está em uma lista
  *   - BETWEEN: entre dois valores (requer fieldMin/fieldMax no DTO)
  *   - IS_NULL: campo é null

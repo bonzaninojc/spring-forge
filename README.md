@@ -62,11 +62,13 @@ mvn clean install
 
 > ⚠️ **Importante:** não configure `<executions>` com `<phase>`. O plugin foi projetado para rodar **somente sob demanda** via linha de comando. Ver seção [Uso](#-uso).
 
+O plugin está disponível no [Maven Central](https://repo1.maven.org/maven2/io/github/bonzaninojc/spring-forge-maven-plugin/1.0.0/).
+
 ```xml
 <build>
   <plugins>
     <plugin>
-      <groupId>io.springforge</groupId>
+      <groupId>io.github.bonzaninojc</groupId>
       <artifactId>spring-forge-maven-plugin</artifactId>
       <version>1.0.0</version>
     </plugin>
@@ -745,7 +747,7 @@ Veja o arquivo completo em [`examples/forge.json`](examples/forge.json).
 
 ```xml
 <plugin>
-  <groupId>io.springforge</groupId>
+  <groupId>io.github.bonzaninojc</groupId>
   <artifactId>spring-forge-maven-plugin</artifactId>
   <version>1.0.0</version>
   <configuration>
