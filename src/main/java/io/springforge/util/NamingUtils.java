@@ -19,12 +19,16 @@ public final class NamingUtils {
     /** "product_category" → "ProductCategory" */
     public static String toPascalCase(String snakeOrCamel) {
         if (snakeOrCamel == null || snakeOrCamel.isBlank()) return snakeOrCamel;
+        // If already camelCase (no separators), just capitalize first letter
+        if (!snakeOrCamel.contains("_") && !snakeOrCamel.contains("-") && !snakeOrCamel.contains(" ")) {
+            return Character.toUpperCase(snakeOrCamel.charAt(0)) + snakeOrCamel.substring(1);
+        }
         String[] parts = snakeOrCamel.split("[_\\-\\s]+");
         StringBuilder sb = new StringBuilder();
         for (String part : parts) {
             if (!part.isEmpty()) {
                 sb.append(Character.toUpperCase(part.charAt(0)));
-                sb.append(part.substring(1).toLowerCase());
+                sb.append(part.substring(1));
             }
         }
         return sb.toString();

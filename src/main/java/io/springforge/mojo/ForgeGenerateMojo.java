@@ -109,7 +109,8 @@ public class ForgeGenerateMojo extends AbstractMojo {
             new RabbitMQGenerator(getLog()),
             new SpringEventGenerator(getLog()),
             new OpenApiEnricher(getLog()),
-            new ScheduledTaskGenerator(getLog())
+            new ScheduledTaskGenerator(getLog()),
+            new ExportImportGenerator(getLog())
         );
 
         FrontendGenerator frontendGenerator = new FrontendGenerator(getLog());
@@ -146,6 +147,15 @@ public class ForgeGenerateMojo extends AbstractMojo {
             }
         }
 
+        // 4.6 Cache: CacheConfig + CachedServiceImpl
+        if (definition.getProject().isGenerateCache()) {
+            CacheGenerator cacheGen = new CacheGenerator(getLog());
+            cacheGen.generateGlobalCacheConfig(definition, outputDir);
+            for (EntityDefinition entity : entities) {
+                cacheGen.generateCachedService(definition, entity, outputDir);
+            }
+        }
+
         // 5. Registra source root somente se explicitamente solicitado (-Dforge.addSourceRoot=true)
         //    Por padrão NÃO registra — o dev copia os arquivos gerados para src/main/java manualmente.
         if (addSourceRoot) {
@@ -171,6 +181,23 @@ public class ForgeGenerateMojo extends AbstractMojo {
 
         getLog().info("");
         getLog().info("✔ Spring Forge concluído: " + total + " entidade(s) gerada(s).");
+
+        // Auto-gera forge-schema.json na raiz do projeto (se ainda não existir)
+        autoGenerateSchema();
+    }
+
+    private void autoGenerateSchema() {
+        try {
+            File schemaFile = new File(project.getBasedir(), "forge-schema.json");
+            if (schemaFile.exists()) return;
+            java.io.InputStream is = getClass().getResourceAsStream("/forge-schema.json");
+            if (is == null) return;
+            java.nio.file.Files.copy(is, schemaFile.toPath());
+            is.close();
+            getLog().info("  [GERADO] forge-schema.json (adicione \"$schema\": \"./forge-schema.json\" ao forge.json para autocomplete)");
+        } catch (Exception e) {
+            getLog().debug("Não foi possível gerar forge-schema.json: " + e.getMessage());
+        }
     }
 
     /**

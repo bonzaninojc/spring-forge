@@ -8,8 +8,18 @@
 
 <p align="center">
   <strong>Gera backend Spring Boot completo a partir de um único arquivo <code>forge.json</code></strong><br/>
-  Entity • Repository • Service • Controller • DTOs • Mapper • Migrations • RabbitMQ • OpenAPI • Spring Events • Scheduled Tasks • Security/RBAC • Tests • Frontend React
+  Entity • Repository • Service • Controller • DTOs • Mapper • Migrations • RabbitMQ • OpenAPI • Spring Events • Scheduled Tasks • Security/RBAC • Cache • Export/Import • Tests • Frontend React
 </p>
+
+---
+
+## 💡 Sobre o projeto
+
+O **Spring Forge** nasceu de uma frustração comum: toda vez que iniciamos um novo microserviço ou módulo Spring Boot, precisamos criar dezenas de classes repetitivas — Entity, Repository, Service, Controller, DTOs, Mapper, testes... E quando o domínio cresce, manter tudo consistente vira um pesadelo.
+
+A proposta é simples: **você descreve suas entidades, campos, relacionamentos e regras de negócio em um único arquivo JSON**, e o plugin gera todo o código boilerplate — seguindo as melhores práticas do ecossistema Spring. Você foca no que importa: a lógica de negócio.
+
+**Não é um framework que toma conta do seu projeto.** O código gerado vai para uma pasta temporária (`target/`), e você decide o que copiar para `src/main/java`. Sem mágica em runtime, sem dependências escondidas, sem lock-in. É só geração de código que você pode auditar, editar e versionar como qualquer outro arquivo do projeto.
 
 ---
 
@@ -26,11 +36,16 @@
 | 🗃️ **Flyway Migrations** | Scripts SQL gerados automaticamente |
 | 🔒 **Security/RBAC** | `@PreAuthorize` + SecurityConfig + roles por entidade/action |
 | 🧪 **Testes Unitários** | JUnit 5 + Mockito para Service e Controller |
-| 🔍 **Filtros/Search** | `POST /search` com FilterDTO + JPA Specification |
+| 🔍 **Filtros Dinâmicos** | `POST /search` com operadores configuráveis (CONTAINS, IN, BETWEEN, IS_NULL...) |
+| 🚀 **Cache (Redis/Caffeine)** | `@Cacheable`, `@CacheEvict`, `@CachePut` com TTL configurável |
+| 📤 **Export/Import** | Endpoints CSV e Excel com upload/download automático |
 | 🎨 **Frontend React** | Vite + MUI + Redux Toolkit + Dark Mode + Responsivo |
 | 🔄 **MapStruct Mappers** | Conversão automática Entity ↔ DTO |
 | 🛡️ **Soft Delete** | Exclusão lógica com `deletedAt` |
 | 📋 **Auditoria** | `createdAt` e `updatedAt` automáticos |
+| 🔀 **Reverse Engineering** | Gera `forge.json` a partir de banco existente |
+| 📐 **JSON Schema** | Validação + autocomplete na IDE para o `forge.json` |
+| 🖥️ **Dashboard Web** | Editor visual local para montar o `forge.json` (auto-shutdown) |
 
 ---
 
@@ -119,6 +134,25 @@ mvn clean install
     <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
     <version>2.5.0</version>
   </dependency>
+
+  <!-- Redis (se generateCache: true + provider: redis) -->
+  <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
+  </dependency>
+
+  <!-- Caffeine (se generateCache: true + provider: caffeine) -->
+  <dependency>
+    <groupId>com.github.ben-manes.caffeine</groupId>
+    <artifactId>caffeine</artifactId>
+  </dependency>
+
+  <!-- Apache POI (se exportImport com format: excel) -->
+  <dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi-ooxml</artifactId>
+    <version>5.2.5</version>
+  </dependency>
 </dependencies>
 
 <build>
@@ -165,41 +199,49 @@ mvn spring-forge:generate -Dforge.entities=Product,Category
 
 # Pular geração
 mvn spring-forge:generate -Dforge.skip=true
+
+# Gerar JSON Schema para autocomplete na IDE
+mvn spring-forge:schema
+
+# Reverse engineering — gera forge.json a partir de um banco existente
+mvn spring-forge:reverse -Dforge.jdbcUrl=jdbc:postgresql://localhost:5432/mydb -Dforge.jdbcUser=user -Dforge.jdbcPassword=pass
 ```
+
+### Goals disponíveis
+
+| Goal | Descrição |
+|------|-----------|
+| `spring-forge:generate` | Gera código a partir do `forge.json` |
+| `spring-forge:schema` | Gera `forge-schema.json` para validação/autocomplete na IDE |
+| `spring-forge:reverse` | Gera `forge.json` a partir de um banco de dados existente |
+| `spring-forge:ui` | Abre dashboard web para editar o `forge.json` visualmente |
 
 ### Onde o código é gerado?
 
 Por padrão o código vai para `target/generated-sources/spring-forge/`. Após revisar os arquivos, **copie-os manualmente para `src/main/java`** — isso garante que você tem controle total sobre o que entra no seu projeto.
-
-```
-target/generated-sources/spring-forge/
-└── com/myapp/
-    ├── entity/Product.java
-    ├── controller/ProductController.java
-    └── ...
-```
-
-### Integrar ao build automático (opcional)
-
-Se quiser que o Maven compile os arquivos gerados diretamente de `target/generated-sources/spring-forge` sem copiá-los para `src/main/java`, use a flag `forge.addSourceRoot=true`:
-
-```bash
-mvn spring-forge:generate -Dforge.addSourceRoot=true
-```
-
-Isso registra o diretório de saída como compile source root para a sessão atual do Maven. **Não é o fluxo recomendado** — prefira copiar os arquivos gerados para `src/main/java` e commitar.
-
-> ⚠️ **Nunca** configure `forge.outputDir` apontando para `src/main/java`. O plugin detecta isso e lança um erro para evitar erros de `duplicate class` no compilador.
 
 ### Tabela de parâmetros
 
 | Parâmetro | Propriedade (`-D`) | Default | Descrição |
 |-----------|-------------------|---------|-----------|
 | `inputFile` | `forge.input` | `${project.basedir}/forge.json` | Caminho do `forge.json` |
-| `outputDir` | `forge.outputDir` | `target/generated-sources/spring-forge` | Diretório de saída do código Java gerado |
-| `entitiesFilter` | `forge.entities` | *(todas)* | Gerar apenas entidades específicas (separadas por vírgula) |
+| `outputDir` | `forge.outputDir` | `target/generated-sources/spring-forge` | Diretório de saída |
+| `entitiesFilter` | `forge.entities` | *(todas)* | Gerar apenas entidades específicas (vírgula) |
 | `skip` | `forge.skip` | `false` | Pular execução |
-| `addSourceRoot` | `forge.addSourceRoot` | `false` | Registrar `outputDir` como compile source root do Maven |
+| `addSourceRoot` | `forge.addSourceRoot` | `false` | Registrar como compile source root |
+
+### Parâmetros do `reverse`
+
+| Propriedade (`-D`) | Default | Descrição |
+|-------------------|---------|-----------|
+| `forge.jdbcUrl` | *(obrigatório)* | URL JDBC do banco |
+| `forge.jdbcUser` | *(obrigatório)* | Usuário do banco |
+| `forge.jdbcPassword` | `""` | Senha |
+| `forge.basePackage` | `com.myapp` | Pacote base no JSON gerado |
+| `forge.schema` | *(default do driver)* | Schema a analisar |
+| `forge.tables` | *(todas)* | Tabelas a incluir (vírgula) |
+| `forge.excludeTables` | `flyway_schema_history,...` | Tabelas a excluir |
+| `forge.output` | `forge.json` | Caminho de saída |
 
 ---
 
@@ -211,7 +253,7 @@ Isso registra o diretório de saída como compile source root para a sessão atu
 |-------|------|---------|-----------| 
 | `basePackage` | String | **obrigatório** | Pacote base, ex: `com.myapp` |
 | `name` | String | **obrigatório** | Nome do projeto |
-| `database` | String | `postgres` | `postgres`, `mysql`, `mongodb` |
+| `database` | String | `postgres` | `postgres`, `mysql`, `mongodb`, `h2` |
 | `generateMigrations` | Boolean | `false` | Gerar scripts Flyway |
 | `generateMappers` | Boolean | `true` | Gerar Mappers MapStruct |
 | `generateFrontend` | Boolean | `false` | Gerar frontend React (Vite+MUI+Redux) |
@@ -220,7 +262,8 @@ Isso registra o diretório de saída como compile source root para a sessão atu
 | `generateSpringEvents` | Boolean | `false` | Gerar ApplicationEvent + Listeners |
 | `generateScheduled` | Boolean | `false` | Gerar `@Scheduled` para actions agendadas |
 | `generateTests` | Boolean | `false` | Gerar testes unitários (JUnit 5 + Mockito) |
-| `generateSecurity` | Boolean | `false` | Gerar Spring Security + RBAC (`@PreAuthorize`) |
+| `generateSecurity` | Boolean | `false` | Gerar Spring Security + RBAC |
+| `generateCache` | Boolean | `false` | Gerar Spring Cache (Redis ou Caffeine) |
 | `frontendDir` | String | `frontend/src` | Diretório de saída do frontend |
 
 ---
@@ -233,11 +276,125 @@ Isso registra o diretório de saída como compile source root para a sessão atu
 | `tableName` | String | auto (snake_case) | Nome da tabela no banco |
 | `auditable` | Boolean | `true` | Gera `createdAt` e `updatedAt` |
 | `softDelete` | Boolean | `false` | Gera `deletedAt` + exclusão lógica |
-| `apiPath` | String | auto | Path da API REST, ex: `/api/v1/products` |
-| `openApiTags` | Array | `[]` | Tags OpenAPI para os endpoints |
-| `roles` | Array | `[]` | Roles RBAC para proteger os endpoints (`@PreAuthorize`) |
-| `filters` | Array | `[]` | Filtros de busca (gera `POST /search` + FilterDTO + Specification) |
-| `generate` | Array | tudo | Layers: `entity`, `repository`, `service`, `controller`, `dto`, `mapper`, `migration` |
+| `apiPath` | String | auto | Path da API REST |
+| `openApiTags` | Array | `[]` | Tags OpenAPI |
+| `roles` | Array | `[]` | Roles RBAC |
+| `filters` | Array | `[]` | Filtros de busca com operadores |
+| `cache` | Object | — | Configuração de cache |
+| `exportImport` | Object | — | Configuração de export/import |
+| `generate` | Array | tudo | Layers a gerar |
+
+---
+
+### `cache` — Spring Cache
+
+Definido na entidade. Requer `generateCache: true` no project.
+
+| Campo | Tipo | Default | Descrição |
+|-------|------|---------|-----------| 
+| `enabled` | Boolean | `true` | Ativa cache para esta entidade |
+| `ttlSeconds` | Integer | `300` | Time-to-live em segundos |
+| `maxSize` | Integer | `500` | Tamanho máximo do cache |
+| `provider` | String | `redis` | `redis` ou `caffeine` |
+
+**Exemplo:**
+```json
+{
+  "cache": {
+    "enabled": true,
+    "ttlSeconds": 600,
+    "maxSize": 1000,
+    "provider": "redis"
+  }
+}
+```
+
+**Gera:**
+- `CacheConfig.java` — `@EnableCaching` + CacheManager com TTL por entidade
+- `ProductCachedServiceImpl.java` — `@Primary` decorator que delega para o ServiceImpl e adiciona `@Cacheable` (findById), `@CachePut` (update), `@CacheEvict` (create/delete). Actions customizadas são delegadas diretamente.
+
+---
+
+### `exportImport` — Export/Import CSV e Excel
+
+| Campo | Tipo | Default | Descrição |
+|-------|------|---------|-----------| 
+| `enabled` | Boolean | `true` | Ativa export/import |
+| `formats` | Array | `["csv"]` | Formatos: `csv`, `excel` |
+| `exportFields` | Array | *(todos do response)* | Campos a exportar |
+| `importFields` | Array | *(todos do request)* | Campos aceitos no import |
+
+**Exemplo:**
+```json
+{
+  "exportImport": {
+    "enabled": true,
+    "formats": ["csv", "excel"],
+    "exportFields": ["name", "sku", "price", "stock"],
+    "importFields": ["name", "sku", "price", "stock"]
+  }
+}
+```
+
+**Endpoints gerados:**
+- `GET /api/v1/products/export/csv` — download CSV
+- `POST /api/v1/products/import/csv` — upload CSV (multipart)
+- `GET /api/v1/products/export/excel` — download XLSX
+- `POST /api/v1/products/import/excel` — upload XLSX (multipart)
+
+**Resposta do import:**
+```json
+{ "imported": 42, "message": "42 registro(s) importado(s)" }
+```
+
+---
+
+### `filter` — Filtros de busca com operadores
+
+| Campo | Tipo | Default | Descrição |
+|-------|------|---------|-----------|
+| `name` | String | **obrigatório** | Nome do campo de filtro |
+| `type` | String | **obrigatório** | Tipo do valor |
+| `label` | String | = `name` | Label para exibição |
+| `operator` | String | *(auto)* | Operador de comparação |
+| `targetField` | String | *(inferido)* | Campo real na entidade |
+| `enumValues` | Array | — | Valores do Enum |
+
+**Operadores disponíveis:**
+
+| Operador | SQL gerado | Tipo no DTO |
+|----------|-----------|-------------|
+| `EQUALS` | `= ?` | `T` |
+| `NOT_EQUALS` | `!= ?` | `T` |
+| `CONTAINS` | `LIKE %?%` (case-insensitive) | `String` |
+| `STARTS_WITH` | `LIKE ?%` | `String` |
+| `ENDS_WITH` | `LIKE %?` | `String` |
+| `GREATER_THAN` | `> ?` | `T` |
+| `GREATER_THAN_OR_EQUAL` | `>= ?` | `T` |
+| `LESS_THAN` | `< ?` | `T` |
+| `LESS_THAN_OR_EQUAL` | `<= ?` | `T` |
+| `IN` | `IN (?)` | `List<T>` |
+| `BETWEEN` | `BETWEEN ? AND ?` | `List<T>` (2 elementos) |
+| `IS_NULL` | `IS NULL` | `Boolean` (flag) |
+| `IS_NOT_NULL` | `IS NOT NULL` | `Boolean` (flag) |
+
+**Convenções automáticas** (quando `operator` é omitido):
+- Campos `String` → `CONTAINS`
+- Campos `Enum` / `Boolean` → `EQUALS`
+- Sufixo `Min` → `GREATER_THAN_OR_EQUAL`
+- Sufixo `Max` → `LESS_THAN_OR_EQUAL`
+
+**Exemplo avançado:**
+```json
+{
+  "filters": [
+    { "name": "name", "type": "String", "operator": "STARTS_WITH" },
+    { "name": "tags", "type": "String", "operator": "IN" },
+    { "name": "priceRange", "type": "BigDecimal", "operator": "BETWEEN", "targetField": "price" },
+    { "name": "hasDescription", "type": "String", "operator": "IS_NOT_NULL", "targetField": "description" }
+  ]
+}
+```
 
 ---
 
@@ -247,14 +404,14 @@ Isso registra o diretório de saída como compile source root para a sessão atu
 |-------|------|---------|-----------| 
 | `name` | String | **obrigatório** | Nome em camelCase |
 | `type` | String | **obrigatório** | `String`, `Integer`, `Long`, `Double`, `Float`, `BigDecimal`, `Boolean`, `LocalDate`, `LocalDateTime`, `UUID`, `Enum` |
-| `required` | Boolean | `false` | Gera `@NotNull` / `@NotBlank` |
-| `unique` | Boolean | `false` | Gera `unique = true` na coluna |
-| `maxLength` | Integer | — | Tamanho máximo (String) |
-| `minLength` | Integer | — | Tamanho mínimo (String) |
+| `required` | Boolean | `false` | `@NotNull` / `@NotBlank` |
+| `unique` | Boolean | `false` | `unique = true` na coluna |
+| `maxLength` | Integer | — | Tamanho máximo |
+| `minLength` | Integer | — | Tamanho mínimo |
 | `defaultValue` | String | — | Valor padrão no banco |
-| `columnName` | String | auto (snake_case) | Nome da coluna |
-| `enumValues` | Array | — | Valores do Enum (obrigatório se `type=Enum`) |
-| `validations` | Array | — | Anotações extras, ex: `["@Email", "@Positive"]` |
+| `columnName` | String | auto | Nome da coluna |
+| `enumValues` | Array | — | Valores do Enum |
+| `validations` | Array | — | Anotações extras |
 | `inResponse` | Boolean | `true` | Incluir no ResponseDTO |
 | `inRequest` | Boolean | `true` | Incluir no RequestDTO |
 
@@ -265,275 +422,221 @@ Isso registra o diretório de saída como compile source root para a sessão atu
 | Campo | Tipo | Default | Descrição |
 |-------|------|---------|-----------| 
 | `type` | String | **obrigatório** | `ManyToOne`, `OneToMany`, `OneToOne`, `ManyToMany` |
-| `targetEntity` | String | **obrigatório** | Entidade alvo, ex: `Category` |
-| `fieldName` | String | **obrigatório** | Nome do campo, ex: `category` |
+| `targetEntity` | String | **obrigatório** | Entidade alvo |
+| `fieldName` | String | **obrigatório** | Nome do campo |
 | `fetch` | String | `LAZY` | `LAZY` ou `EAGER` |
 | `cascade` | String | `MERGE,PERSIST` | Tipos de cascade |
 | `mappedBy` | String | — | Para `OneToMany`/`ManyToMany` |
 | `inResponse` | Boolean | `true` | Incluir no ResponseDTO |
 
+> **Nota:** Para relações `ManyToOne`, o plugin gera automaticamente `{fieldName}Id` (tipo `Long`) no `RequestDTO` e `ResponseDTO`. No service, o ID é usado para buscar a entidade relacionada via repository.
+
 ---
 
 ### `action` — Endpoints customizados
 
-Actions permitem definir operações de negócio além do CRUD padrão, com DTOs próprios, eventos e integração com filas.
-
 | Campo | Tipo | Default | Descrição |
 |-------|------|---------|-----------| 
-| `name` | String | **obrigatório** | Nome em camelCase, ex: `activate` |
-| `description` | String | — | Descrição Javadoc do método |
-| `httpMethod` | String | — | `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. Se omitido, gera apenas no Service |
-| `apiPath` | String | `/{id}/{name}` | Path relativo ao base path da entidade |
-| `requiresId` | Boolean | `true` | Se recebe ID da entidade como parâmetro |
-| `request` | Array\<Field\> | `[]` | Campos do DTO de input |
-| `response` | Array\<Field\> | `[]` | Campos do DTO de output (se vazio, retorna `void`) |
-| `event` | Object | — | Evento Spring a publicar (ver abaixo) |
-| `queues` | Array | `[]` | Filas RabbitMQ da action |
-| `scheduled` | Boolean | `false` | Gera `@Scheduled` (sem endpoint HTTP) |
-| `scheduledCron` | String | — | Cron expression, ex: `"0 0 3 * * *"` |
+| `name` | String | **obrigatório** | Nome em camelCase |
+| `description` | String | — | Descrição Javadoc |
+| `httpMethod` | String | — | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
+| `apiPath` | String | `/{id}/{name}` | Path relativo |
+| `requiresId` | Boolean | `true` | Recebe ID como parâmetro |
+| `request` | Array | `[]` | Campos do DTO de input |
+| `response` | Array | `[]` | Campos do DTO de output |
+| `event` | Object | — | Evento Spring a publicar |
+| `queues` | Array | `[]` | Filas RabbitMQ |
+| `scheduled` | Boolean | `false` | Gera `@Scheduled` |
+| `scheduledCron` | String | — | Cron expression |
 | `scheduledFixedRate` | Long | — | Fixed rate em ms |
-| `openApiTags` | Array | `[]` | Tags OpenAPI adicionais |
-| `openApiResponses` | Array | `[]` | Respostas HTTP extras (`{code, description}`) |
-| `roles` | Array | `[]` | Roles RBAC específicas desta action (sobrescreve roles da entidade) |
-
-**Exemplo:**
-
-```json
-{
-  "name": "activate",
-  "httpMethod": "POST",
-  "apiPath": "/{id}/activate",
-  "requiresId": true,
-  "request": [
-    { "name": "reason", "type": "String", "required": true }
-  ],
-  "response": [
-    { "name": "activated", "type": "Boolean" },
-    { "name": "message", "type": "String" }
-  ]
-}
-```
+| `roles` | Array | `[]` | Roles RBAC específicas |
 
 ---
 
 ### `event` — Spring Events
 
-Definido dentro de uma `action` para publicar um `ApplicationEvent` após a execução.
-
 | Campo | Tipo | Default | Descrição |
 |-------|------|---------|-----------| 
-| `name` | String | `${ActionName}Event` | Nome da classe do evento |
-| `generateListener` | Boolean | `false` | Gera classe `@EventListener` |
-| `async` | Boolean | `false` | Listener usa `@Async` (requer `@EnableAsync`) |
+| `name` | String | `${ActionName}Event` | Nome da classe |
+| `generateListener` | Boolean | `false` | Gera `@EventListener` |
+| `async` | Boolean | `false` | Usa `@Async` |
 | `description` | String | — | Descrição Javadoc |
-
-**Exemplo:**
-
-```json
-{
-  "event": {
-    "name": "OrderConfirmedEvent",
-    "generateListener": true,
-    "async": true,
-    "description": "Publicado quando um pedido é confirmado"
-  }
-}
-```
 
 ---
 
 ### `queue` — RabbitMQ
 
-Pode ser definido no nível da entidade (global) ou dentro de uma `action`.
-
 | Campo | Tipo | Default | Descrição |
 |-------|------|---------|-----------| 
-| `name` | String | **obrigatório** | Nome da fila, ex: `order.confirmed` |
+| `name` | String | **obrigatório** | Nome da fila |
 | `exchange` | String | `""` | Nome da exchange |
 | `routingKey` | String | = `name` | Routing key |
 | `durable` | Boolean | `true` | Fila durável |
 | `direction` | String | `PUBLISH` | `PUBLISH`, `CONSUME` ou `BOTH` |
-| `deadLetterExchange` | String | — | Se informado, cria DLQ automaticamente |
-| `retryTtlMs` | Integer | `30000` | TTL de retry para DLQ (ms) |
+| `deadLetterExchange` | String | — | Cria DLQ automaticamente |
+| `retryTtlMs` | Integer | `30000` | TTL de retry para DLQ |
 
-**Exemplo:**
+---
+
+## 📐 JSON Schema e Validação
+
+### Gerar o schema
+
+```bash
+mvn spring-forge:schema
+```
+
+Gera `forge-schema.json` na raiz do projeto. Referencie no seu `forge.json`:
 
 ```json
 {
-  "queues": [
-    {
-      "name": "product.stock.adjusted",
-      "exchange": "products",
-      "routingKey": "product.stock.adjusted",
-      "direction": "BOTH",
-      "deadLetterExchange": "products.dlx",
-      "retryTtlMs": 60000
-    }
-  ]
+  "$schema": "./forge-schema.json",
+  "project": { ... }
 }
+```
+
+**Benefícios na IDE:**
+- ✅ Autocomplete de propriedades
+- ✅ Validação em tempo real (tipos, enums, padrões)
+- ✅ Documentação inline ao passar o mouse
+- ✅ Detecção de erros antes de rodar o Maven
+
+### Validação no build
+
+O parser valida automaticamente com mensagens descritivas:
+
+```
+[ERROR] forge.json inválido (2 erro(s)):
+  1. entities[0].name 'product' deve ser PascalCase (ex: Product, OrderItem).
+  2. entities[0].fields[1].type 'Texto' inválido. Use: String, Integer, Long, ...
+
+  Dica: execute 'mvn spring-forge:schema' para gerar o JSON Schema com autocomplete.
 ```
 
 ---
 
-### `scheduled` — Tarefas agendadas
+## 🖥️ Dashboard Web
 
-Uma action com `"scheduled": true` gera um `@Scheduled` sem expor endpoint HTTP.
+Edite o `forge.json` visualmente com um dashboard local:
 
-```json
-{
-  "name": "processExpiredOrders",
-  "description": "Cancela pedidos pendentes há mais de 24h",
-  "scheduled": true,
-  "scheduledCron": "0 0 1 * * *",
-  "requiresId": false,
-  "response": [
-    { "name": "processed", "type": "Integer" }
-  ]
-}
+```bash
+mvn spring-forge:ui
+# ou em outra porta:
+mvn spring-forge:ui -Dforge.ui.port=8080
 ```
+
+Abre automaticamente `http://localhost:4200` no browser.
+
+**O que o dashboard oferece:**
+- Editor visual de entidades, campos e relacionamentos
+- Configuração de filtros com operadores (CONTAINS, IN, BETWEEN...)
+- Configuração de export/import (formatos, campos)
+- Configuração do projeto com checkboxes para todas as flags
+- Validação em tempo real com feedback de erros
+- Botão "Gerar" que salva e executa a geração
+- Aba JSON para edição raw quando necessário
+- Toast notifications com resultado da operação
+- Auto-shutdown: fecha o browser e o server libera a porta automaticamente
+- Funciona em qualquer IDE — é um servidor web local
 
 ---
 
-### `filter` — Filtros de busca
+## 🔀 Reverse Engineering
 
-Definido no nível da entidade. Gera `FilterDTO`, `Specification` (JPA Criteria) e endpoint `POST /search`. No frontend, gera um painel de filtros colapsável na listagem.
+Gera `forge.json` a partir de um banco de dados existente:
 
-| Campo | Tipo | Default | Descrição |
-|-------|------|---------|-----------|
-| `name` | String | **obrigatório** | Nome do campo de filtro (camelCase) |
-| `type` | String | **obrigatório** | Tipo: `String`, `Integer`, `BigDecimal`, `Boolean`, `Enum`, etc. |
-| `label` | String | = `name` | Label para exibição no frontend |
-| `enumValues` | Array | — | Valores do Enum (obrigatório se `type=Enum`) |
-
-**Convenções automáticas:**
-- Campos `String` → filtro `LIKE %...%` case-insensitive
-- Campos com sufixo `Min` (ex: `priceMin`) → `>=` no campo base (`price`)
-- Campos com sufixo `Max` (ex: `priceMax`) → `<=` no campo base (`price`)
-- Campos `Enum` → comparação `equal`
-
-**Exemplo:**
-
-```json
-{
-  "filters": [
-    { "name": "name", "type": "String", "label": "Nome do produto" },
-    { "name": "status", "type": "Enum", "enumValues": ["ACTIVE", "INACTIVE"], "label": "Status" },
-    { "name": "priceMin", "type": "BigDecimal", "label": "Preço mínimo" },
-    { "name": "priceMax", "type": "BigDecimal", "label": "Preço máximo" }
-  ]
-}
+```bash
+mvn spring-forge:reverse \
+  -Dforge.jdbcUrl=jdbc:postgresql://localhost:5432/mydb \
+  -Dforge.jdbcUser=postgres \
+  -Dforge.jdbcPassword=secret \
+  -Dforge.basePackage=com.myapp \
+  -Dforge.schema=public
 ```
 
-O endpoint gerado é `POST /api/v1/products/search` com body:
-```json
-{
-  "name": "notebook",
-  "status": "ACTIVE",
-  "priceMin": 100.00,
-  "priceMax": 5000.00
-}
-```
-
----
-
-### `roles` — Security/RBAC
-
-Definido na entidade (protege todo o CRUD) ou na action (protege endpoint específico). Requer `generateSecurity: true`.
-
-**Na entidade** — aplica `@PreAuthorize` no nível de classe do controller:
-```json
-{
-  "name": "Product",
-  "roles": ["ADMIN", "MANAGER"]
-}
-```
-Gera: `@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")`
-
-**Na action** — aplica `@PreAuthorize` no método específico (sobrescreve o da entidade):
-```json
-{
-  "name": "activate",
-  "roles": ["ADMIN"]
-}
-```
-Gera: `@PreAuthorize("hasRole('ADMIN')")`
+**O que detecta automaticamente:**
+- Tabelas → entidades (PascalCase)
+- Colunas → fields (camelCase) com tipos mapeados
+- Foreign keys → relations `ManyToOne`
+- `created_at` / `updated_at` → `auditable: true`
+- `deleted_at` → `softDelete: true`
+- Unique constraints → `unique: true`
 
 ---
 
 ## 📂 O que é gerado
 
 ```
-target/generated-sources/spring-forge/   ← revise e copie para src/main/java
+target/generated-sources/spring-forge/
 └── com/myapp/
+    ├── config/
+    │   └── CacheConfig.java                    ← (se generateCache: true)
     ├── entity/
-    │   ├── Product.java                        ← JPA Entity
-    │   └── ProductStatus.java                  ← Enum (se type=Enum)
+    │   ├── Product.java
+    │   └── ProductStatus.java                  ← Enum
     ├── repository/
-    │   └── ProductRepository.java              ← JpaRepository + JpaSpecificationExecutor
+    │   └── ProductRepository.java
     ├── service/
-    │   ├── ProductService.java                 ← Interface (CRUD + Actions)
+    │   ├── ProductService.java
+    │   ├── ProductExportImportService.java     ← (se exportImport)
     │   └── impl/
-    │       └── ProductServiceImpl.java         ← Implementação
+    │       ├── ProductServiceImpl.java
+    │       ├── ProductCachedServiceImpl.java   ← (se cache)
+    │       └── ProductExportImportServiceImpl.java
     ├── controller/
-    │   ├── ProductController.java              ← REST Controller + Action endpoints
-    │   └── ProductControllerDocs.java          ← Interface OpenAPI (se generateOpenApi: true)
+    │   ├── ProductController.java
+    │   ├── ProductExportImportController.java  ← (se exportImport)
+    │   └── ProductControllerDocs.java          ← (se generateOpenApi)
     ├── dto/
-    │   ├── ProductRequestDTO.java              ← DTO de entrada
-    │   ├── ProductResponseDTO.java             ← DTO de saída
-    │   ├── ActivateRequestDTO.java             ← DTO da action (input)
-    │   └── ActivateResponseDTO.java            ← DTO da action (output)
+    │   ├── ProductRequestDTO.java
+    │   ├── ProductResponseDTO.java
+    │   └── ProductFilterDTO.java               ← (se filters)
     ├── mapper/
-    │   └── ProductMapper.java                  ← MapStruct Mapper
-    ├── event/                                  ← (se generateSpringEvents: true)
-    │   ├── ProductActivatedEvent.java          ← ApplicationEvent (campos final, só getters)
-    │   └── ProductActivatedEventListener.java  ← @EventListener
-    ├── messaging/                              ← (se generateRabbitMQ: true)
-    │   ├── RabbitMQConfig.java                 ← Exchanges, Queues, Bindings
-    │   ├── ProductStockPublisher.java          ← Publisher
-    │   └── ProductStockConsumer.java           ← @RabbitListener
-    ├── scheduler/                              ← (se generateScheduled: true)
-    │   └── ProductScheduledTasks.java          ← @Scheduled methods
-    ├── specification/                          ← (se entity tem filters)
-    │   └── ProductSpecification.java           ← JPA Criteria Specification
-    ├── security/                               ← (se generateSecurity: true)
-    │   ├── SecurityConfig.java                 ← @Configuration + SecurityFilterChain
-    │   └── AppRole.java                        ← Enum com todas as roles
+    │   └── ProductMapper.java
+    ├── specification/
+    │   └── ProductSpecification.java           ← (se filters)
+    ├── event/
+    │   ├── ProductActivatedEvent.java
+    │   └── ProductActivatedEventListener.java
+    ├── messaging/
+    │   ├── RabbitMQConfig.java
+    │   ├── ProductStockPublisher.java
+    │   └── ProductStockConsumer.java
+    ├── scheduler/
+    │   └── ProductScheduledTasks.java
+    ├── security/
+    │   ├── SecurityConfig.java
+    │   └── AppRole.java
     └── exception/
         ├── ProductNotFoundException.java
         └── GlobalExceptionHandler.java
 ```
 
-**Testes** (em `target/generated-sources/spring-forge-test/`, se `generateTests: true`):
+**Frontend** (se `generateFrontend: true`):
 ```
-└── com/myapp/
-    ├── service/impl/
-    │   └── ProductServiceImplTest.java         ← JUnit 5 + Mockito
-    └── controller/
-        └── ProductControllerTest.java          ← @WebMvcTest + MockMvc
-```
-
-**Frontend** (em `target/frontend/`, se `generateFrontend: true`):
-```
-frontend/
-├── package.json, vite.config.ts, tsconfig*.json
-└── src/
-    ├── App.tsx                                 ← Dark Mode + Layout Responsivo
-    ├── theme.ts, routes.tsx, main.tsx
-    ├── validation/
-    │   └── productSchema.ts                    ← Zod schema (validação client-side)
-    ├── store/
-    │   ├── store.ts, hooks.ts
-    │   └── slices/productSlice.ts              ← Redux Toolkit (CRUD async thunks)
-    ├── components/
-    │   ├── AppMenu.tsx                         ← Drawer responsivo (mobile/desktop)
-    │   ├── AppHeader.tsx                       ← Header com toggle Dark Mode
-    │   ├── product/
-    │   │   └── ProductFilterPanel.tsx          ← Painel colapsável de filtros
-    │   └── shared/                             ← PageHeader, ConfirmDialog, EmptyState...
-    └── pages/product/
-        ├── ListProductPage.tsx                 ← Tabela paginada + filtros + skeleton
-        ├── ProductFormPage.tsx                 ← Formulário create/edit
-        └── ProductDetailPage.tsx               ← Visualização read-only + actions
+frontend/src/
+├── App.tsx, theme.ts, routes.tsx, main.tsx
+├── validation/productSchema.ts                 ← Zod
+├── store/
+│   ├── store.ts, hooks.ts
+│   └── slices/productSlice.ts
+├── components/
+│   ├── AppMenu.tsx, AppHeader.tsx
+│   ├── shared/
+│   │   ├── PageHeader.tsx
+│   │   ├── ConfirmDialog.tsx
+│   │   ├── EmptyState.tsx
+│   │   ├── EntitySelect.tsx
+│   │   ├── FormTextField.tsx
+│   │   ├── StatusChip.tsx
+│   │   ├── LoadingOverlay.tsx
+│   │   └── NotificationProvider.tsx
+│   └── product/
+│       └── ProductFilterPanel.tsx
+└── pages/product/
+    ├── ListProductPage.tsx
+    ├── ProductFormPage.tsx
+    └── ProductDetailPage.tsx
 ```
 
 ---
@@ -545,6 +648,7 @@ frontend/
 
 ```json
 {
+  "$schema": "./forge-schema.json",
   "project": {
     "basePackage": "com.myapp",
     "name": "MyEcommerceApp",
@@ -557,7 +661,8 @@ frontend/
     "generateSpringEvents": true,
     "generateScheduled": true,
     "generateTests": true,
-    "generateSecurity": true
+    "generateSecurity": true,
+    "generateCache": true
   },
   "entities": [
     {
@@ -568,16 +673,29 @@ frontend/
       "apiPath": "/api/v1/products",
       "openApiTags": ["Products"],
       "roles": ["ADMIN", "MANAGER"],
+      "cache": {
+        "enabled": true,
+        "ttlSeconds": 600,
+        "maxSize": 1000,
+        "provider": "redis"
+      },
+      "exportImport": {
+        "enabled": true,
+        "formats": ["csv", "excel"],
+        "exportFields": ["name", "sku", "price", "stock", "status"]
+      },
       "filters": [
-        { "name": "name", "type": "String", "label": "Nome do produto" },
-        { "name": "status", "type": "Enum", "enumValues": ["ACTIVE", "INACTIVE"], "label": "Status" },
-        { "name": "priceMin", "type": "BigDecimal", "label": "Preço mínimo" },
-        { "name": "priceMax", "type": "BigDecimal", "label": "Preço máximo" }
+        { "name": "name", "type": "String", "label": "Nome", "operator": "CONTAINS" },
+        { "name": "status", "type": "Enum", "enumValues": ["ACTIVE", "INACTIVE"], "operator": "EQUALS" },
+        { "name": "priceMin", "type": "BigDecimal", "operator": "GREATER_THAN_OR_EQUAL", "targetField": "price" },
+        { "name": "priceMax", "type": "BigDecimal", "operator": "LESS_THAN_OR_EQUAL", "targetField": "price" },
+        { "name": "tags", "type": "String", "operator": "IN" }
       ],
       "fields": [
         { "name": "name", "type": "String", "required": true, "maxLength": 200 },
         { "name": "price", "type": "BigDecimal", "required": true },
         { "name": "stock", "type": "Integer", "required": true },
+        { "name": "sku", "type": "String", "required": true, "unique": true },
         { "name": "status", "type": "Enum", "enumValues": ["ACTIVE", "INACTIVE"], "required": true }
       ],
       "relations": [
@@ -600,24 +718,6 @@ frontend/
           ],
           "response": [
             { "name": "activated", "type": "Boolean" }
-          ]
-        },
-        {
-          "name": "adjustStock",
-          "httpMethod": "PATCH",
-          "apiPath": "/{id}/stock",
-          "queues": [
-            {
-              "name": "product.stock.adjusted",
-              "exchange": "products",
-              "direction": "PUBLISH"
-            }
-          ],
-          "request": [
-            { "name": "quantity", "type": "Integer", "required": true }
-          ],
-          "response": [
-            { "name": "currentStock", "type": "Integer" }
           ]
         },
         {
@@ -649,18 +749,9 @@ Veja o arquivo completo em [`examples/forge.json`](examples/forge.json).
   <artifactId>spring-forge-maven-plugin</artifactId>
   <version>1.0.0</version>
   <configuration>
-    <!-- Caminho do forge.json (default: ${project.basedir}/forge.json) -->
     <inputFile>${project.basedir}/forge.json</inputFile>
-
-    <!-- Saída do código gerado. NUNCA aponte para src/main/java. -->
-    <!-- Default: ${project.build.directory}/generated-sources/spring-forge -->
     <outputDir>${project.build.directory}/generated-sources/spring-forge</outputDir>
-
-    <!-- Pular execução -->
     <skip>false</skip>
-
-    <!-- Registrar outputDir como compile source root (default: false) -->
-    <!-- Use apenas se quiser compilar direto de target/ sem copiar para src/ -->
     <addSourceRoot>false</addSourceRoot>
   </configuration>
 </plugin>
@@ -672,15 +763,15 @@ Veja o arquivo completo em [`examples/forge.json`](examples/forge.json).
 
 ### `duplicate class: com.myapp.controller.ProductController`
 
-Ocorre quando o `outputDir` aponta para `src/main/java` (ou subpasta dela) e o arquivo já existe lá. O plugin detecta isso na inicialização e lança um erro com mensagem explicativa. Solução: mantenha o `outputDir` padrão (`target/generated-sources/spring-forge`) e copie os arquivos manualmente para `src/main/java`.
+O `outputDir` aponta para `src/main/java`. O plugin detecta isso e lança erro. Mantenha o padrão (`target/generated-sources/spring-forge`) e copie manualmente.
 
 ### O plugin rodou sozinho no `mvn clean install`
 
-Isso acontece se o `pom.xml` do projeto-alvo tiver a execução configurada com `<phase>generate-sources</phase>`. Remova o bloco `<executions>` — o plugin tem `defaultPhase = NONE` e não se vincula a nenhuma fase do lifecycle por conta própria.
+Remova `<executions>` com `<phase>` do pom.xml. O plugin tem `defaultPhase = NONE`.
 
-### Arquivo gerado com `final` e `setter` (não compila)
+### Erro "propriedade desconhecida" no forge.json
 
-Corrigido na v1.0.1. Ocorria em eventos Spring (`ApplicationEvent`) quando a action tinha campos no `response` — os campos eram declarados `private final` mas o gerador produzia setters para eles. Agora eventos geram apenas getters.
+O parser agora reporta propriedades desconhecidas com sugestões. Execute `mvn spring-forge:schema` e use o `$schema` no JSON para autocomplete.
 
 ---
 

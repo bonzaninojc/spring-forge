@@ -4,11 +4,13 @@ import io.springforge.model.ActionDefinition;
 import io.springforge.model.EntityDefinition;
 import io.springforge.model.FieldDefinition;
 import io.springforge.model.ForgeDefinition;
+import io.springforge.model.RelationDefinition;
 import io.springforge.util.NamingUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
 
 import java.io.File;
+import java.util.List;
 
 public class ServiceGenerator extends AbstractGenerator {
 
@@ -128,6 +130,14 @@ public class ServiceGenerator extends AbstractGenerator {
         if (useMapper) w.imp(mapperPkg(def) + "." + name + "Mapper");
         if (entity.isSoftDelete()) w.imp("java.time.LocalDateTime");
 
+        // Imports for ManyToOne relation repositories
+        List<RelationDefinition> manyToOneRelations = entity.getRelations().stream()
+                .filter(r -> "ManyToOne".equals(r.getType())).toList();
+        for (RelationDefinition r : manyToOneRelations) {
+            w.imp(repoPkg + "." + r.getTargetEntity() + "Repository");
+            w.imp(entPkg + "." + r.getTargetEntity());
+        }
+
         // Imports dos Enums (necessário para conversão manual)
         if (!useMapper) {
             for (FieldDefinition f : entity.getFields()) {
@@ -153,21 +163,26 @@ public class ServiceGenerator extends AbstractGenerator {
         // Campos
         w.line("private final " + name + "Repository repository;");
         if (useMapper) w.line("private final " + name + "Mapper mapper;");
+        for (RelationDefinition r : manyToOneRelations) {
+            w.line("private final " + r.getTargetEntity() + "Repository " + NamingUtils.toCamelCase(r.getTargetEntity()) + "Repository;");
+        }
         w.blank();
 
         // Construtor
-        if (useMapper) {
-            w.line("public " + name + "ServiceImpl(" + name + "Repository repository, " + name + "Mapper mapper) {")
-             .indent()
-             .line("this.repository = repository;")
-             .line("this.mapper = mapper;")
-             .unindent().line("}").blank();
-        } else {
-            w.line("public " + name + "ServiceImpl(" + name + "Repository repository) {")
-             .indent()
-             .line("this.repository = repository;")
-             .unindent().line("}").blank();
+        StringBuilder ctorParams = new StringBuilder(name + "Repository repository");
+        if (useMapper) ctorParams.append(", ").append(name).append("Mapper mapper");
+        for (RelationDefinition r : manyToOneRelations) {
+            ctorParams.append(", ").append(r.getTargetEntity()).append("Repository ").append(NamingUtils.toCamelCase(r.getTargetEntity())).append("Repository");
         }
+        w.line("public " + name + "ServiceImpl(" + ctorParams + ") {")
+         .indent()
+         .line("this.repository = repository;");
+        if (useMapper) w.line("this.mapper = mapper;");
+        for (RelationDefinition r : manyToOneRelations) {
+            String camelTarget = NamingUtils.toCamelCase(r.getTargetEntity());
+            w.line("this." + camelTarget + "Repository = " + camelTarget + "Repository;");
+        }
+        w.unindent().line("}").blank();
 
         // findAll
         w.line("@Override")
@@ -294,14 +309,14 @@ public class ServiceGenerator extends AbstractGenerator {
 
         // Conversão manual (só se não usar MapStruct)
         if (!useMapper) {
-            writeManualConversions(w, entity, name);
+            writeManualConversions(w, entity, name, manyToOneRelations);
         }
 
         w.unindent().line("}");
         return w;
     }
 
-    private void writeManualConversions(CodeWriter w, EntityDefinition entity, String name) {
+    private void writeManualConversions(CodeWriter w, EntityDefinition entity, String name, List<RelationDefinition> manyToOneRelations) {
         // toResponseDTO
         w.line("private " + name + "ResponseDTO toResponseDTO(" + name + " entity) {")
          .indent()
@@ -314,6 +329,13 @@ public class ServiceGenerator extends AbstractGenerator {
                 w.line("dto.set" + cap + "(entity.get" + cap + "() != null ? entity.get" + cap + "().name() : null);");
             } else {
                 w.line("dto.set" + cap + "(entity.get" + cap + "());");
+            }
+        }
+        // ManyToOne relation IDs in response
+        for (RelationDefinition r : manyToOneRelations) {
+            if (r.isInResponse()) {
+                String capField = NamingUtils.toPascalCase(r.getFieldName());
+                w.line("dto.set" + capField + "Id(entity.get" + capField + "() != null ? entity.get" + capField + "().getId() : null);");
             }
         }
         if (entity.isAuditable()) {
@@ -337,6 +359,16 @@ public class ServiceGenerator extends AbstractGenerator {
                 w.line("entity.set" + cap + "(dto.get" + cap + "());");
             }
         }
+        // ManyToOne relations
+        for (RelationDefinition r : manyToOneRelations) {
+            String capField = NamingUtils.toPascalCase(r.getFieldName());
+            String camelTarget = NamingUtils.toCamelCase(r.getTargetEntity());
+            w.line("if (dto.get" + capField + "Id() != null) {")
+             .indent()
+             .line("entity.set" + capField + "(" + camelTarget + "Repository.findById(dto.get" + capField + "Id())")
+             .line("    .orElseThrow(() -> new RuntimeException(\"" + r.getTargetEntity() + " não encontrado: \" + dto.get" + capField + "Id())));")
+             .unindent().line("}");
+        }
         w.line("return entity;")
          .unindent().line("}").blank();
 
@@ -352,6 +384,16 @@ public class ServiceGenerator extends AbstractGenerator {
             } else {
                 w.line("if (dto.get" + cap + "() != null) entity.set" + cap + "(dto.get" + cap + "());");
             }
+        }
+        // ManyToOne relations
+        for (RelationDefinition r : manyToOneRelations) {
+            String capField = NamingUtils.toPascalCase(r.getFieldName());
+            String camelTarget = NamingUtils.toCamelCase(r.getTargetEntity());
+            w.line("if (dto.get" + capField + "Id() != null) {")
+             .indent()
+             .line("entity.set" + capField + "(" + camelTarget + "Repository.findById(dto.get" + capField + "Id())")
+             .line("    .orElseThrow(() -> new RuntimeException(\"" + r.getTargetEntity() + " não encontrado: \" + dto.get" + capField + "Id())));")
+             .unindent().line("}");
         }
         w.unindent().line("}").blank();
     }

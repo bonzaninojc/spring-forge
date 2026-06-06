@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Spring Forge — Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #f0f4f8; color: #1e293b; }
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: linear-gradient(180deg, #0f2744 0%, #1a3a5c 100%); color: #fff; padding: 20px 12px; display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; }
+    .sidebar .logo { display: flex; align-items: center; gap: 10px; padding: 0 8px; margin-bottom: 24px; }
+    .sidebar .logo h1 { font-size: 16px; font-weight: 700; }
+    .sidebar .logo span { font-size: 10px; background: #1976d2; padding: 2px 6px; border-radius: 4px; }
+    .nav-section { font-size: 10px; text-transform: uppercase; color: #5b8fb9; letter-spacing: 1.2px; padding: 0 12px; margin: 20px 0 6px; font-weight: 600; }
+    .nav-item { padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; margin-bottom: 2px; display: flex; align-items: center; gap: 10px; color: #c8ddf0; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: #1976d2; color: #fff; box-shadow: 0 2px 8px rgba(25,118,210,0.4); }
+    .nav-item .icon { font-size: 15px; width: 20px; text-align: center; }
+    .nav-item .count { margin-left: auto; font-size: 11px; background: rgba(255,255,255,0.12); padding: 1px 7px; border-radius: 10px; }
+    .nav-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 12px 8px; }
+    .sidebar .actions-bar { margin-top: auto; padding: 12px 4px 0; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 6px; }
+    .sidebar .actions-bar button { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-gen { background: #1976d2; color: #fff; }
+    .btn-gen:hover { background: #1565c0; }
+    .btn-sec { background: rgba(255,255,255,0.08); color: #c8ddf0; }
+    .btn-sec:hover { background: rgba(255,255,255,0.12); }
+    .main { margin-left: 260px; flex: 1; padding: 28px 32px; max-width: 1100px; }
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; color: #1e293b; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #e8edf2; }
+    .card h3 { font-size: 14px; font-weight: 600; color: #1976d2; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .form-group { display: flex; flex-direction: column; gap: 3px; }
+    .form-group label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; }
+    .form-group input, .form-group select, .form-group textarea { padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; transition: border 0.15s; font-family: inherit; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,0.08); }
+    .form-group input[type="checkbox"] { width: 16px; height: 16px; }
+    .checkbox-group { flex-direction: row; align-items: center; gap: 6px; }
+    .warn { color: #dc2626; font-size: 10px; font-weight: 500; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { text-align: left; padding: 6px 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #475569; font-size: 11px; text-transform: uppercase; }
+    td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; }
+    tr:hover td { background: #fafcff; }
+    .btn-sm { padding: 4px 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.1s; }
+    .btn-danger { background: #fee2e2; color: #dc2626; }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-add { background: #dbeafe; color: #1976d2; }
+    .btn-add:hover { background: #bfdbfe; }
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 500; z-index: 1000; animation: slideIn 0.25s; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .toast.success { background: #16a34a; }
+    .toast.error { background: #dc2626; }
+    .toast.info { background: #1976d2; }
+    @keyframes slideIn { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .empty-state { text-align: center; padding: 48px 20px; color: #94a3b8; }
+    .empty-state h3 { font-size: 18px; margin-bottom: 6px; color: #64748b; }
+    .action-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fafcff; }
+    .action-card .action-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .action-card .action-title { font-size: 14px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+    .action-card .method-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; color: #fff; }
+    .method-GET { background: #16a34a; }
+    .method-POST { background: #1976d2; }
+    .method-PUT { background: #d97706; }
+    .method-PATCH { background: #7c3aed; }
+    .method-DELETE { background: #dc2626; }
+    .dto-section { margin-top: 10px; padding: 10px; background: #fff; border: 1px solid #e8edf2; border-radius: 8px; }
+    .dto-section h4 { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+    .inline-field { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+    .inline-field input, .inline-field select { padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// Heartbeat — avisa o server que o browser ainda está aberto
+setInterval(() => fetch('/api/heartbeat').catch(() => {}), 5000);
+
+const api = {
+  async getForge() { const r = await fetch('/api/forge'); if (!r.ok) throw new Error(); return r.json(); },
+  async saveForge(d) { return (await fetch('/api/forge', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(d) })).json(); },
+  async validate(d) { return (await fetch('/api/validate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(d) })).json(); },
+  async generate() { return (await fetch('/api/generate', { method: 'POST' })).json(); }
+};
+
+function Toast({ message, type, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, []);
+  return <div className={`toast ${type}`}>{message}</div>;
+}
+
+// ═══════════════════════════════════════
+// Project Page
+// ═══════════════════════════════════════
+function ProjectPage({ project, onChange }) {
+  const set = (k, v) => onChange({ ...project, [k]: v });
+  const flags = ['generateMigrations','generateMappers','generateFrontend','generateRabbitMQ','generateOpenApi','generateSpringEvents','generateScheduled','generateTests','generateSecurity','generateCache'];
+  const labels = { generateMigrations:'Migrations', generateMappers:'Mappers', generateFrontend:'Frontend React', generateRabbitMQ:'RabbitMQ', generateOpenApi:'OpenAPI', generateSpringEvents:'Spring Events', generateScheduled:'Scheduled', generateTests:'Testes', generateSecurity:'Security/RBAC', generateCache:'Cache' };
+
+  return (<div>
+    <div className="page-title">Configuração do Projeto</div>
+    <div className="card">
+      <h3>📦 Informações Gerais</h3>
+      <div className="form-grid">
+        <div className="form-group"><label>Nome</label><input value={project.name||''} onChange={e=>set('name',e.target.value)}/></div>
+        <div className="form-group"><label>Pacote Base</label><input value={project.basePackage||''} onChange={e=>set('basePackage',e.target.value)} placeholder="com.myapp"/>{project.basePackage && !/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/.test(project.basePackage) && <span className="warn">⚠ Pacote inválido</span>}</div>
+        <div className="form-group"><label>Banco de Dados</label><select value={project.database||'postgres'} onChange={e=>set('database',e.target.value)}><option value="postgres">PostgreSQL</option><option value="mysql">MySQL</option><option value="h2">H2</option><option value="mongodb">MongoDB</option></select></div>
+      </div>
+    </div>
+    <div className="card">
+      <h3>🔧 Features</h3>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:6}}>
+        {flags.map(f=>(<div key={f} className="form-group checkbox-group"><input type="checkbox" checked={project[f]||false} onChange={e=>set(f,e.target.checked)} id={f}/><label htmlFor={f} style={{cursor:'pointer',fontSize:12}}>{labels[f]}</label></div>))}
+      </div>
+    </div>
+  </div>);
+}
+
+// ═══════════════════════════════════════
+// Entity Page (Fields + Relations)
+// ═══════════════════════════════════════
+function EntityPage({ entity, allNames, onChange }) {
+  const set = (k,v) => onChange({...entity,[k]:v});
+  const types = ['String','Integer','Long','Double','Float','BigDecimal','Boolean','LocalDate','LocalDateTime','UUID','Enum'];
+  const fields = entity.fields || [];
+  const relations = entity.relations || [];
+  const filters = entity.filters || [];
+  const operators = ['EQUALS','NOT_EQUALS','CONTAINS','STARTS_WITH','ENDS_WITH','GREATER_THAN','GREATER_THAN_OR_EQUAL','LESS_THAN','LESS_THAN_OR_EQUAL','IN','BETWEEN','IS_NULL','IS_NOT_NULL'];
+
+  const addField = () => set('fields',[...fields,{name:'',type:'String',required:false}]);
+  const updField = (i,k,v) => { const u=[...fields]; u[i]={...u[i],[k]:v}; set('fields',u); };
+  const delField = (i) => set('fields',fields.filter((_,idx)=>idx!==i));
+
+  const addRel = () => set('relations',[...relations,{type:'ManyToOne',targetEntity:'',fieldName:''}]);
+  const updRel = (i,k,v) => { const u=[...relations]; u[i]={...u[i],[k]:v}; set('relations',u); };
+  const delRel = (i) => set('relations',relations.filter((_,idx)=>idx!==i));
+
+  const addFilter = () => set('filters',[...filters,{name:'',type:'String',label:''}]);
+  const updFilter = (i,k,v) => { const u=[...filters]; u[i]={...u[i],[k]:v}; set('filters',u); };
+  const delFilter = (i) => set('filters',filters.filter((_,idx)=>idx!==i));
+
+  const ei = entity.exportImport || {};
+  const setEi = (k,v) => set('exportImport',{...ei,[k]:v});
+
+  return (<div>
+    <div className="page-title">{entity.name || 'Nova Entidade'}</div>
+    <div className="card">
+      <h3>🏗️ Configuração</h3>
+      <div className="form-grid">
+        <div className="form-group"><label>Nome</label><input value={entity.name||''} onChange={e=>set('name',e.target.value)} placeholder="Product"/>{entity.name&&!/^[A-Z][a-zA-Z0-9]*$/.test(entity.name)&&<span className="warn">⚠ PascalCase</span>}</div>
+        <div className="form-group"><label>Tabela</label><input value={entity.tableName||''} onChange={e=>set('tableName',e.target.value)} placeholder="(auto)"/></div>
+        <div className="form-group"><label>API Path</label><input value={entity.apiPath||''} onChange={e=>set('apiPath',e.target.value)} placeholder="/api/v1/products"/>{entity.apiPath&&!entity.apiPath.startsWith('/')&&<span className="warn">⚠ Deve iniciar com /</span>}</div>
+        <div className="form-group"><label>Roles</label><input value={(entity.roles||[]).join(', ')} onChange={e=>set('roles',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} placeholder="ADMIN, USER"/></div>
+        <div className="form-group checkbox-group"><input type="checkbox" checked={entity.auditable!==false} onChange={e=>set('auditable',e.target.checked)} id="aud"/><label htmlFor="aud">Auditoria</label></div>
+        <div className="form-group checkbox-group"><input type="checkbox" checked={entity.softDelete||false} onChange={e=>set('softDelete',e.target.checked)} id="sd"/><label htmlFor="sd">Soft Delete</label></div>
+      </div>
+    </div>
+
+    <div className="card">
+      <h3>📋 Campos ({fields.length})</h3>
+      {fields.length>0&&<table><thead><tr><th>Nome</th><th>Tipo</th><th>Required</th><th>Unique</th><th>Max</th><th>Enum Values</th><th></th></tr></thead><tbody>
+        {fields.map((f,i)=>(<tr key={i}>
+          <td><input value={f.name||''} onChange={e=>updField(i,'name',e.target.value)} style={{border:'none',fontSize:12,width:120}} placeholder="campo"/>{f.name&&!/^[a-z][a-zA-Z0-9]*$/.test(f.name)&&<span className="warn"> ⚠</span>}</td>
+          <td><select value={f.type||'String'} onChange={e=>updField(i,'type',e.target.value)} style={{border:'none',fontSize:12}}>{types.map(t=><option key={t}>{t}</option>)}</select></td>
+          <td><input type="checkbox" checked={f.required||false} onChange={e=>updField(i,'required',e.target.checked)}/></td>
+          <td><input type="checkbox" checked={f.unique||false} onChange={e=>updField(i,'unique',e.target.checked)}/></td>
+          <td><input type="number" value={f.maxLength||''} onChange={e=>updField(i,'maxLength',e.target.value?+e.target.value:null)} style={{width:50,border:'none',fontSize:12}}/></td>
+          <td>{f.type==='Enum'&&<input value={(f.enumValues||[]).join(',')} onChange={e=>updField(i,'enumValues',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} style={{fontSize:11,border:'1px solid #e2e8f0',borderRadius:4,padding:'2px 4px',width:120}} placeholder="VAL1,VAL2"/>}{f.type==='Enum'&&(!f.enumValues||!f.enumValues.length)&&<span className="warn"> ⚠</span>}</td>
+          <td><button className="btn-sm btn-danger" onClick={()=>delField(i)}>✕</button></td>
+        </tr>))}
+      </tbody></table>}
+      <button className="btn-sm btn-add" onClick={addField} style={{marginTop:10}}>+ Campo</button>
+    </div>
+
+    <div className="card">
+      <h3>🔗 Relacionamentos ({relations.length})</h3>
+      {relations.length>0&&<table><thead><tr><th>Tipo</th><th>Entidade Alvo</th><th>Campo</th><th>Fetch</th><th></th></tr></thead><tbody>
+        {relations.map((r,i)=>(<tr key={i}>
+          <td><select value={r.type} onChange={e=>updRel(i,'type',e.target.value)} style={{border:'none',fontSize:12}}>{['ManyToOne','OneToMany','OneToOne','ManyToMany'].map(t=><option key={t}>{t}</option>)}</select></td>
+          <td><select value={r.targetEntity||''} onChange={e=>updRel(i,'targetEntity',e.target.value)} style={{border:'none',fontSize:12}}><option value="">Selecione</option>{allNames.filter(n=>n!==entity.name).map(n=><option key={n}>{n}</option>)}</select></td>
+          <td><input value={r.fieldName||''} onChange={e=>updRel(i,'fieldName',e.target.value)} style={{border:'none',fontSize:12}} placeholder="campo"/></td>
+          <td><select value={r.fetch||'LAZY'} onChange={e=>updRel(i,'fetch',e.target.value)} style={{border:'none',fontSize:12}}><option>LAZY</option><option>EAGER</option></select></td>
+          <td><button className="btn-sm btn-danger" onClick={()=>delRel(i)}>✕</button></td>
+        </tr>))}
+      </tbody></table>}
+      <button className="btn-sm btn-add" onClick={addRel} style={{marginTop:10}}>+ Relacionamento</button>
+    </div>
+
+    <div className="card">
+      <h3>🔍 Filtros ({filters.length})</h3>
+      {filters.length>0&&<table><thead><tr><th>Nome</th><th>Tipo</th><th>Label</th><th>Operador</th><th>Target Field</th><th>Enum Values</th><th></th></tr></thead><tbody>
+        {filters.map((f,i)=>(<tr key={i}>
+          <td><input value={f.name||''} onChange={e=>updFilter(i,'name',e.target.value)} style={{border:'none',fontSize:12,width:100}} placeholder="campo"/></td>
+          <td><select value={f.type||'String'} onChange={e=>updFilter(i,'type',e.target.value)} style={{border:'none',fontSize:12}}>{types.map(t=><option key={t}>{t}</option>)}</select></td>
+          <td><input value={f.label||''} onChange={e=>updFilter(i,'label',e.target.value)} style={{border:'none',fontSize:12,width:90}} placeholder="label"/></td>
+          <td><select value={f.operator||''} onChange={e=>updFilter(i,'operator',e.target.value||undefined)} style={{border:'none',fontSize:11}}><option value="">(auto)</option>{operators.map(o=><option key={o}>{o}</option>)}</select></td>
+          <td><input value={f.targetField||''} onChange={e=>updFilter(i,'targetField',e.target.value||undefined)} style={{border:'none',fontSize:12,width:80}} placeholder="(inferido)"/></td>
+          <td>{f.type==='Enum'&&<input value={(f.enumValues||[]).join(',')} onChange={e=>updFilter(i,'enumValues',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} style={{fontSize:11,border:'1px solid #e2e8f0',borderRadius:4,padding:'2px 4px',width:100}} placeholder="VAL1,VAL2"/>}</td>
+          <td><button className="btn-sm btn-danger" onClick={()=>delFilter(i)}>✕</button></td>
+        </tr>))}
+      </tbody></table>}
+      <button className="btn-sm btn-add" onClick={addFilter} style={{marginTop:10}}>+ Filtro</button>
+    </div>
+
+    <div className="card">
+      <h3>📤 Export/Import</h3>
+      <div className="form-grid">
+        <div className="form-group checkbox-group"><input type="checkbox" checked={ei.enabled||false} onChange={e=>setEi('enabled',e.target.checked)} id="ei-en"/><label htmlFor="ei-en">Ativo</label></div>
+        <div className="form-group"><label>Formatos</label>
+          <div style={{display:'flex',gap:8}}>
+            <label style={{fontSize:12,display:'flex',alignItems:'center',gap:4}}><input type="checkbox" checked={(ei.formats||[]).includes('csv')} onChange={e=>{const f=ei.formats||[];setEi('formats',e.target.checked?[...f,'csv']:f.filter(x=>x!=='csv'));}}/> CSV</label>
+            <label style={{fontSize:12,display:'flex',alignItems:'center',gap:4}}><input type="checkbox" checked={(ei.formats||[]).includes('excel')} onChange={e=>{const f=ei.formats||[];setEi('formats',e.target.checked?[...f,'excel']:f.filter(x=>x!=='excel'));}}/> Excel</label>
+          </div>
+        </div>
+        <div className="form-group"><label>Campos Export</label><input value={(ei.exportFields||[]).join(', ')} onChange={e=>setEi('exportFields',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} placeholder="name, price, stock"/></div>
+        <div className="form-group"><label>Campos Import</label><input value={(ei.importFields||[]).join(', ')} onChange={e=>setEi('importFields',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} placeholder="(todos do request)"/></div>
+      </div>
+    </div>
+  </div>);
+}
+
+// ═══════════════════════════════════════
+// DTO Fields Mini Editor
+// ═══════════════════════════════════════
+function DtoFieldsEditor({ label, fields, onChange }) {
+  const types = ['String','Integer','Long','Double','Float','BigDecimal','Boolean','LocalDate','LocalDateTime'];
+  const add = () => onChange([...fields, {name:'',type:'String',required:false}]);
+  const upd = (i,k,v) => { const u=[...fields]; u[i]={...u[i],[k]:v}; onChange(u); };
+  const del = (i) => onChange(fields.filter((_,idx)=>idx!==i));
+
+  return (<div className="dto-section">
+    <h4>{label} ({fields.length} campos)</h4>
+    {fields.map((f,i)=>(<div key={i} className="inline-field">
+      <input value={f.name||''} onChange={e=>upd(i,'name',e.target.value)} placeholder="campo" style={{width:100}}/>
+      <select value={f.type||'String'} onChange={e=>upd(i,'type',e.target.value)}>{types.map(t=><option key={t}>{t}</option>)}</select>
+      <label style={{fontSize:11,display:'flex',alignItems:'center',gap:3}}><input type="checkbox" checked={f.required||false} onChange={e=>upd(i,'required',e.target.checked)} style={{width:14,height:14}}/>Req</label>
+      <button className="btn-sm btn-danger" onClick={()=>del(i)}>✕</button>
+    </div>))}
+    <button className="btn-sm btn-add" onClick={add} style={{marginTop:4}}>+ Campo</button>
+  </div>);
+}
+
+// ═══════════════════════════════════════
+// Actions Page
+// ═══════════════════════════════════════
+function ActionsPage({ entity, onChange }) {
+  const actions = entity.actions || [];
+  const set = (a) => onChange({...entity, actions: a});
+  const add = () => set([...actions, {name:'',httpMethod:'POST',apiPath:'',requiresId:true,request:[],response:[],roles:[]}]);
+  const del = (i) => set(actions.filter((_,idx)=>idx!==i));
+  const upd = (i,k,v) => { const u=[...actions]; u[i]={...u[i],[k]:v}; set(u); };
+  const methods = ['GET','POST','PUT','PATCH','DELETE'];
+
+  return (<div>
+    <div className="page-title">Actions — {entity.name}</div>
+    {actions.map((a,i)=>(<div key={i} className="action-card">
+      <div className="action-header">
+        <div className="action-title">
+          {a.httpMethod && <span className={`method-badge method-${a.httpMethod}`}>{a.httpMethod}</span>}
+          {a.name || '(sem nome)'}
+          {a.scheduled && <span style={{fontSize:10,background:'#f3e8ff',color:'#7c3aed',padding:'2px 6px',borderRadius:4}}>⏰ Scheduled</span>}
+        </div>
+        <button className="btn-sm btn-danger" onClick={()=>del(i)}>Excluir</button>
+      </div>
+      <div className="form-grid">
+        <div className="form-group"><label>Nome</label><input value={a.name||''} onChange={e=>upd(i,'name',e.target.value)} placeholder="activate"/>{a.name&&!/^[a-z][a-zA-Z0-9]*$/.test(a.name)&&<span className="warn">⚠ camelCase</span>}</div>
+        <div className="form-group"><label>HTTP Method</label><select value={a.httpMethod||''} onChange={e=>upd(i,'httpMethod',e.target.value||null)}><option value="">(nenhum)</option>{methods.map(m=><option key={m}>{m}</option>)}</select></div>
+        <div className="form-group"><label>API Path</label><input value={a.apiPath||''} onChange={e=>upd(i,'apiPath',e.target.value)} placeholder="/{id}/activate"/></div>
+        <div className="form-group"><label>Descrição</label><input value={a.description||''} onChange={e=>upd(i,'description',e.target.value)}/></div>
+        <div className="form-group"><label>Roles</label><input value={(a.roles||[]).join(', ')} onChange={e=>upd(i,'roles',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} placeholder="ADMIN"/></div>
+        <div className="form-group checkbox-group"><input type="checkbox" checked={a.requiresId!==false} onChange={e=>upd(i,'requiresId',e.target.checked)} id={`rid${i}`}/><label htmlFor={`rid${i}`}>Requer ID</label></div>
+        <div className="form-group checkbox-group"><input type="checkbox" checked={a.scheduled||false} onChange={e=>upd(i,'scheduled',e.target.checked)} id={`sch${i}`}/><label htmlFor={`sch${i}`}>Scheduled</label></div>
+        {a.scheduled&&<div className="form-group"><label>Cron</label><input value={a.scheduledCron||''} onChange={e=>upd(i,'scheduledCron',e.target.value)} placeholder="0 0 3 * * *"/></div>}
+      </div>
+
+      {/* Event */}
+      <div style={{marginTop:10,padding:10,background:'#f8fafc',borderRadius:8,border:'1px solid #e8edf2'}}>
+        <div style={{fontSize:11,fontWeight:600,color:'#64748b',marginBottom:6}}>📡 EVENTO {a.event?.name ? `— ${a.event.name}` : '(nenhum)'}</div>
+        <div className="form-grid" style={{gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))'}}>
+          <div className="form-group"><label>Nome</label><input value={a.event?.name||''} onChange={e=>upd(i,'event',{...(a.event||{}),name:e.target.value||undefined})} placeholder="ProductActivatedEvent"/></div>
+          <div className="form-group checkbox-group"><input type="checkbox" checked={a.event?.generateListener||false} onChange={e=>upd(i,'event',{...(a.event||{}),generateListener:e.target.checked})} id={`evl${i}`}/><label htmlFor={`evl${i}`}>Listener</label></div>
+          <div className="form-group checkbox-group"><input type="checkbox" checked={a.event?.async||false} onChange={e=>upd(i,'event',{...(a.event||{}),async:e.target.checked})} id={`eva${i}`}/><label htmlFor={`eva${i}`}>Async</label></div>
+        </div>
+      </div>
+
+      {/* DTOs */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}}>
+        <DtoFieldsEditor label="➡️ Request DTO" fields={a.request||[]} onChange={f=>upd(i,'request',f)}/>
+        <DtoFieldsEditor label="⬅️ Response DTO" fields={a.response||[]} onChange={f=>upd(i,'response',f)}/>
+      </div>
+    </div>))}
+    <button className="btn-sm btn-add" onClick={add} style={{padding:'8px 16px'}}>+ Nova Action</button>
+  </div>);
+}
+
+// ═══════════════════════════════════════
+// Queues Page
+// ═══════════════════════════════════════
+function QueuesPage({ entity, onChange }) {
+  const queues = entity.queues || [];
+  const set = (q) => onChange({...entity, queues: q});
+  const add = () => set([...queues, {name:'',exchange:'',routingKey:'',durable:true,direction:'PUBLISH'}]);
+  const del = (i) => set(queues.filter((_,idx)=>idx!==i));
+  const upd = (i,k,v) => { const u=[...queues]; u[i]={...u[i],[k]:v}; set(u); };
+
+  return (<div>
+    <div className="page-title">Filas RabbitMQ — {entity.name}</div>
+    {queues.map((q,i)=>(<div key={i} className="card">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+        <h3 style={{margin:0}}>🐇 {q.name||'(sem nome)'}</h3>
+        <button className="btn-sm btn-danger" onClick={()=>del(i)}>Excluir</button>
+      </div>
+      <div className="form-grid">
+        <div className="form-group"><label>Nome</label><input value={q.name||''} onChange={e=>upd(i,'name',e.target.value)} placeholder="product.stock.updated"/></div>
+        <div className="form-group"><label>Exchange</label><input value={q.exchange||''} onChange={e=>upd(i,'exchange',e.target.value)} placeholder="products"/></div>
+        <div className="form-group"><label>Routing Key</label><input value={q.routingKey||''} onChange={e=>upd(i,'routingKey',e.target.value)} placeholder="(= nome)"/></div>
+        <div className="form-group"><label>Direção</label><select value={q.direction||'PUBLISH'} onChange={e=>upd(i,'direction',e.target.value)}><option value="PUBLISH">Publish</option><option value="CONSUME">Consume</option><option value="BOTH">Both</option></select></div>
+        <div className="form-group"><label>DLX</label><input value={q.deadLetterExchange||''} onChange={e=>upd(i,'deadLetterExchange',e.target.value||null)} placeholder="(opcional)"/></div>
+        <div className="form-group checkbox-group"><input type="checkbox" checked={q.durable!==false} onChange={e=>upd(i,'durable',e.target.checked)} id={`qd${i}`}/><label htmlFor={`qd${i}`}>Durável</label></div>
+      </div>
+    </div>))}
+    <button className="btn-sm btn-add" onClick={add} style={{padding:'8px 16px'}}>+ Nova Fila</button>
+  </div>);
+}
+
+// ═══════════════════════════════════════
+// JSON Page
+// ═══════════════════════════════════════
+function JsonPage({ forge, setForge }) {
+  const [text, setText] = useState(JSON.stringify(forge, null, 2));
+  const [error, setError] = useState(null);
+  useEffect(() => setText(JSON.stringify(forge, null, 2)), [forge]);
+  const apply = () => { try { setForge(JSON.parse(text)); setError(null); } catch(e) { setError(e.message); }};
+
+  return (<div>
+    <div className="page-title">Editor JSON</div>
+    <div className="card">
+      {error && <div className="warn" style={{marginBottom:8}}>⚠ {error}</div>}
+      <textarea value={text} onChange={e=>setText(e.target.value)} style={{width:'100%',minHeight:500,fontFamily:'JetBrains Mono, monospace',fontSize:12,padding:12,border:'1px solid #e2e8f0',borderRadius:8,resize:'vertical'}}/>
+      <button className="btn-sm btn-add" onClick={apply} style={{marginTop:8,padding:'6px 14px'}}>Aplicar JSON</button>
+    </div>
+  </div>);
+}
+
+// ═══════════════════════════════════════
+// Main App
+// ═══════════════════════════════════════
+function App() {
+  const [forge, setForge] = useState(null);
+  const [page, setPage] = useState('project'); // project | entity:N | actions:N | queues:N | json
+  const [toast, setToast] = useState(null);
+
+  const show = (msg, type='success') => setToast({message:msg, type});
+
+  useEffect(() => {
+    api.getForge().then(setForge).catch(() => setForge({project:{basePackage:'com.myapp',name:'MyApp',database:'postgres'},entities:[]}));
+  }, []);
+
+  if (!forge) return null;
+
+  const save = async () => { const r = await api.saveForge(forge); show(r.success?'Salvo!':r.error, r.success?'success':'error'); };
+  const validate = async () => { const r = await api.validate(forge); show(r.valid?r.message:r.message, r.valid?'success':'error'); };
+  const generate = async () => { show('Gerando...','info'); await save(); const r = await api.generate(); show(r.success?r.message:r.error, r.success?'success':'error'); };
+
+  const addEntity = () => {
+    const name = prompt('Nome (PascalCase):');
+    if (!name) return;
+    setForge({...forge, entities:[...forge.entities, {name,fields:[],relations:[],actions:[],queues:[],auditable:true,softDelete:false}]});
+    setPage(`entity:${forge.entities.length}`);
+  };
+
+  const delEntity = (idx) => {
+    if (!confirm(`Excluir "${forge.entities[idx].name}"?`)) return;
+    setForge({...forge, entities: forge.entities.filter((_,i)=>i!==idx)});
+    setPage('project');
+  };
+
+  const updEntity = (idx, ent) => { const u=[...forge.entities]; u[idx]=ent; setForge({...forge,entities:u}); };
+
+  const entityNames = forge.entities.map(e=>e.name);
+  const selectedIdx = page.includes(':') ? parseInt(page.split(':')[1]) : null;
+  const currentEntity = selectedIdx != null ? forge.entities[selectedIdx] : null;
+
+  return (<div className="app">
+    <div className="sidebar">
+      <div className="logo"><h1>⚒️ Spring Forge</h1><span>v1.0</span></div>
+
+      <div className="nav-section">Geral</div>
+      <div className={`nav-item ${page==='project'?'active':''}`} onClick={()=>setPage('project')}><span className="icon">⚙️</span>Projeto</div>
+      <div className={`nav-item ${page==='json'?'active':''}`} onClick={()=>setPage('json')}><span className="icon">📄</span>JSON</div>
+
+      <div className="nav-section">Entidades</div>
+      {forge.entities.map((e,i)=>(<div key={i}>
+        <div className={`nav-item ${page===`entity:${i}`?'active':''}`} onClick={()=>setPage(`entity:${i}`)}>
+          <span className="icon">🏗️</span>{e.name||'...'}<span className="count">{(e.fields||[]).length}</span>
+        </div>
+        {selectedIdx===i && (<>
+          <div className={`nav-item ${page===`actions:${i}`?'active':''}`} onClick={()=>setPage(`actions:${i}`)} style={{paddingLeft:36,fontSize:12}}>
+            <span className="icon">🎯</span>Actions<span className="count">{(e.actions||[]).length}</span>
+          </div>
+          <div className={`nav-item ${page===`queues:${i}`?'active':''}`} onClick={()=>setPage(`queues:${i}`)} style={{paddingLeft:36,fontSize:12}}>
+            <span className="icon">🐇</span>Filas<span className="count">{(e.queues||[]).length}</span>
+          </div>
+        </>)}
+      </div>))}
+      <div className="nav-item" onClick={addEntity} style={{color:'#5b8fb9',borderTop:'1px dashed rgba(255,255,255,0.1)',marginTop:8,paddingTop:10}}><span className="icon">➕</span>Nova Entidade</div>
+
+      <div className="actions-bar">
+        <button className="btn-gen" onClick={generate}>▶ Gerar Código</button>
+        <button className="btn-sec" onClick={validate}>✓ Validar</button>
+        <button className="btn-sec" onClick={save}>💾 Salvar</button>
+      </div>
+    </div>
+
+    <div className="main">
+      {page==='project' && <ProjectPage project={forge.project} onChange={p=>setForge({...forge,project:p})}/>}
+      {page==='json' && <JsonPage forge={forge} setForge={setForge}/>}
+      {page.startsWith('entity:') && currentEntity && <EntityPage entity={currentEntity} allNames={entityNames} onChange={e=>updEntity(selectedIdx,e)}/>}
+      {page.startsWith('actions:') && currentEntity && <ActionsPage entity={currentEntity} onChange={e=>updEntity(selectedIdx,e)}/>}
+      {page.startsWith('queues:') && currentEntity && <QueuesPage entity={currentEntity} onChange={e=>updEntity(selectedIdx,e)}/>}
+      {page.startsWith('entity:') && currentEntity && <div style={{marginTop:8,textAlign:'right'}}><button className="btn-sm btn-danger" onClick={()=>delEntity(selectedIdx)} style={{padding:'6px 14px'}}>Excluir Entidade</button></div>}
+    </div>
+
+    {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

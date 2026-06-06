@@ -90,19 +90,19 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("    h6: { fontWeight: 600 },\n");
         sb.append("  },\n");
         sb.append("  palette: {\n");
-        sb.append("    primary: { main: '#6366f1', light: '#818cf8', dark: '#4f46e5' },\n");
-        sb.append("    secondary: { main: '#ec4899', light: '#f472b6', dark: '#db2777' },\n");
-        sb.append("    success: { main: '#10b981' },\n");
-        sb.append("    warning: { main: '#f59e0b' },\n");
-        sb.append("    error: { main: '#ef4444' },\n");
-        sb.append("    background: { default: '#f8fafc', paper: '#ffffff' },\n");
+        sb.append("    primary: { main: '#1976d2', light: '#42a5f5', dark: '#1565c0' },\n");
+        sb.append("    secondary: { main: '#0288d1', light: '#03a9f4', dark: '#01579b' },\n");
+        sb.append("    success: { main: '#2e7d32' },\n");
+        sb.append("    warning: { main: '#ed6c02' },\n");
+        sb.append("    error: { main: '#d32f2f' },\n");
+        sb.append("    background: { default: '#f0f7ff', paper: '#ffffff' },\n");
         sb.append("  },\n");
         sb.append("  shape: { borderRadius: 12 },\n");
         sb.append("  components: {\n");
         sb.append("    MuiButton: {\n");
         sb.append("      styleOverrides: {\n");
         sb.append("        root: { textTransform: 'none', fontWeight: 600, borderRadius: 10, padding: '8px 20px' },\n");
-        sb.append("        contained: { boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)' },\n");
+        sb.append("        contained: { boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)' },\n");
         sb.append("      },\n");
         sb.append("    },\n");
         sb.append("    MuiPaper: {\n");
@@ -139,6 +139,8 @@ public class FrontendGenerator extends AbstractGenerator {
         generateEntitySelect(frontendDir);
         generateFormTextField(frontendDir);
         generateStatusChip(frontendDir);
+        generateLoadingOverlay(frontendDir);
+        generateNotificationProvider(frontendDir);
     }
 
     private void generatePageHeader(File frontendDir) throws MojoExecutionException {
@@ -155,9 +157,9 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("}\n\n");
         sb.append("export default function PageHeader({ title, subtitle, actionLabel, onAction, actionIcon }: PageHeaderProps) {\n");
         sb.append("  return (\n");
-        sb.append("    <Stack direction=\"row\" justifyContent=\"space-between\" alignItems=\"center\" mb={3}>\n");
+        sb.append("    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent=\"space-between\" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2} mb={3}>\n");
         sb.append("      <Box>\n");
-        sb.append("        <Typography variant=\"h4\">{title}</Typography>\n");
+        sb.append("        <Typography variant=\"h4\" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>{title}</Typography>\n");
         sb.append("        {subtitle && <Typography variant=\"body2\" color=\"text.secondary\" mt={0.5}>{subtitle}</Typography>}\n");
         sb.append("      </Box>\n");
         sb.append("      {actionLabel && onAction && (\n");
@@ -226,7 +228,7 @@ public class FrontendGenerator extends AbstractGenerator {
     private void generateEntitySelect(File frontendDir) throws MojoExecutionException {
         StringBuilder sb = new StringBuilder();
         sb.append("import { useEffect, useState } from 'react';\n");
-        sb.append("import { Autocomplete, TextField, CircularProgress } from '@mui/material';\n");
+        sb.append("import { Autocomplete, TextField, CircularProgress, Box, Typography } from '@mui/material';\n");
         sb.append("import axios from 'axios';\n\n");
         sb.append("interface EntityOption {\n");
         sb.append("  id: number;\n");
@@ -241,19 +243,6 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  required?: boolean;\n");
         sb.append("  disabled?: boolean;\n");
         sb.append("}\n\n");
-        sb.append("/**\n");
-        sb.append(" * Componente genérico para selecionar registros de outra entidade.\n");
-        sb.append(" * Faz fetch automático da API e exibe um Autocomplete com busca.\n");
-        sb.append(" *\n");
-        sb.append(" * Uso:\n");
-        sb.append(" *   <EntitySelect\n");
-        sb.append(" *     label=\"Categoria\"\n");
-        sb.append(" *     apiPath=\"/api/v1/categories\"\n");
-        sb.append(" *     labelField=\"name\"\n");
-        sb.append(" *     value={form.categoryId}\n");
-        sb.append(" *     onChange={(id) => setForm({ ...form, categoryId: id })}\n");
-        sb.append(" *   />\n");
-        sb.append(" */\n");
         sb.append("export default function EntitySelect({ label, apiPath, value, onChange, labelField = 'name', required = false, disabled = false }: EntitySelectProps) {\n");
         sb.append("  const [options, setOptions] = useState<EntityOption[]>([]);\n");
         sb.append("  const [loading, setLoading] = useState(false);\n");
@@ -287,12 +276,20 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("      isOptionEqualToValue={(opt, val) => opt.id === val.id}\n");
         sb.append("      loading={loading}\n");
         sb.append("      disabled={disabled}\n");
+        sb.append("      noOptionsText=\"Nenhum resultado\"\n");
+        sb.append("      loadingText=\"Carregando...\"\n");
+        sb.append("      renderOption={(props, option) => (\n");
+        sb.append("        <Box component=\"li\" {...props} key={option.id}>\n");
+        sb.append("          <Typography variant=\"body2\">{option.label}</Typography>\n");
+        sb.append("        </Box>\n");
+        sb.append("      )}\n");
         sb.append("      renderInput={(params) => (\n");
         sb.append("        <TextField\n");
         sb.append("          {...params}\n");
         sb.append("          label={label}\n");
         sb.append("          required={required}\n");
         sb.append("          margin=\"normal\"\n");
+        sb.append("          placeholder={`Selecione ${label.toLowerCase()}...`}\n");
         sb.append("          InputProps={{\n");
         sb.append("            ...params.InputProps,\n");
         sb.append("            endAdornment: (\n");
@@ -364,6 +361,68 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  return <Chip label={value} color={color} size=\"small\" variant=\"outlined\" />;\n");
         sb.append("}\n");
         writeTs(sb.toString(), new File(frontendDir, "components/shared/StatusChip.tsx"));
+    }
+
+    private void generateLoadingOverlay(File frontendDir) throws MojoExecutionException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("import { Backdrop, CircularProgress, Typography, Stack } from '@mui/material';\n\n");
+        sb.append("interface LoadingOverlayProps {\n");
+        sb.append("  open: boolean;\n");
+        sb.append("  message?: string;\n");
+        sb.append("}\n\n");
+        sb.append("export default function LoadingOverlay({ open, message = 'Carregando...' }: LoadingOverlayProps) {\n");
+        sb.append("  return (\n");
+        sb.append("    <Backdrop open={open} sx={{ zIndex: 9999, color: '#fff', flexDirection: 'column' }}>\n");
+        sb.append("      <Stack alignItems=\"center\" spacing={2}>\n");
+        sb.append("        <CircularProgress color=\"inherit\" size={48} />\n");
+        sb.append("        <Typography variant=\"body1\" fontWeight={500}>{message}</Typography>\n");
+        sb.append("      </Stack>\n");
+        sb.append("    </Backdrop>\n");
+        sb.append("  );\n");
+        sb.append("}\n");
+        writeTs(sb.toString(), new File(frontendDir, "components/shared/LoadingOverlay.tsx"));
+    }
+
+    private void generateNotificationProvider(File frontendDir) throws MojoExecutionException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("import { createContext, useContext, useState, useCallback, ReactNode } from 'react';\n");
+        sb.append("import { Snackbar, Alert, AlertColor } from '@mui/material';\n\n");
+        sb.append("interface Notification {\n");
+        sb.append("  message: string;\n");
+        sb.append("  severity: AlertColor;\n");
+        sb.append("}\n\n");
+        sb.append("interface NotificationContextType {\n");
+        sb.append("  notify: (message: string, severity?: AlertColor) => void;\n");
+        sb.append("}\n\n");
+        sb.append("const NotificationContext = createContext<NotificationContextType>({ notify: () => {} });\n\n");
+        sb.append("export const useNotification = () => useContext(NotificationContext);\n\n");
+        sb.append("export default function NotificationProvider({ children }: { children: ReactNode }) {\n");
+        sb.append("  const [notification, setNotification] = useState<Notification | null>(null);\n\n");
+        sb.append("  const notify = useCallback((message: string, severity: AlertColor = 'success') => {\n");
+        sb.append("    setNotification({ message, severity });\n");
+        sb.append("  }, []);\n\n");
+        sb.append("  return (\n");
+        sb.append("    <NotificationContext.Provider value={{ notify }}>\n");
+        sb.append("      {children}\n");
+        sb.append("      <Snackbar\n");
+        sb.append("        open={notification != null}\n");
+        sb.append("        autoHideDuration={4000}\n");
+        sb.append("        onClose={() => setNotification(null)}\n");
+        sb.append("        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}\n");
+        sb.append("      >\n");
+        sb.append("        <Alert\n");
+        sb.append("          severity={notification?.severity ?? 'info'}\n");
+        sb.append("          variant=\"filled\"\n");
+        sb.append("          onClose={() => setNotification(null)}\n");
+        sb.append("          sx={{ borderRadius: 2, minWidth: 300 }}\n");
+        sb.append("        >\n");
+        sb.append("          {notification?.message}\n");
+        sb.append("        </Alert>\n");
+        sb.append("      </Snackbar>\n");
+        sb.append("    </NotificationContext.Provider>\n");
+        sb.append("  );\n");
+        sb.append("}\n");
+        writeTs(sb.toString(), new File(frontendDir, "components/shared/NotificationProvider.tsx"));
     }
 
 
@@ -470,6 +529,12 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  reducers: {\n");
         sb.append("    clearCurrent(state) { state.current = null; },\n");
         sb.append("    clearError(state) { state.error = null; },\n");
+        sb.append("    searchFulfilled(state, action) {\n");
+        sb.append("      state.loading = false;\n");
+        sb.append("      state.items = action.payload.content ?? action.payload;\n");
+        sb.append("      state.totalElements = action.payload.totalElements ?? 0;\n");
+        sb.append("      state.totalPages = action.payload.totalPages ?? 0;\n");
+        sb.append("    },\n");
         sb.append("  },\n");
         sb.append("  extraReducers: (builder) => {\n");
         sb.append("    builder\n");
@@ -483,14 +548,10 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("      .addCase(fetch").append(pluralPascal).append(".rejected, (state, action) => { state.loading = false; state.error = action.error.message ?? 'Erro ao carregar'; })\n");
         sb.append("      .addCase(fetch").append(name).append("ById.fulfilled, (state, action) => { state.current = action.payload; })\n");
         sb.append("      .addCase(create").append(name).append(".pending, (state) => { state.saving = true; })\n");
-        sb.append("      .addCase(create").append(name).append(".fulfilled, (state, action) => { state.saving = false; state.items.push(action.payload); })\n");
+        sb.append("      .addCase(create").append(name).append(".fulfilled, (state) => { state.saving = false; state.totalElements += 1; })\n");
         sb.append("      .addCase(create").append(name).append(".rejected, (state, action) => { state.saving = false; state.error = action.error.message ?? 'Erro ao salvar'; })\n");
         sb.append("      .addCase(update").append(name).append(".pending, (state) => { state.saving = true; })\n");
-        sb.append("      .addCase(update").append(name).append(".fulfilled, (state, action) => {\n");
-        sb.append("        state.saving = false;\n");
-        sb.append("        const idx = state.items.findIndex(i => i.id === action.payload.id);\n");
-        sb.append("        if (idx >= 0) state.items[idx] = action.payload;\n");
-        sb.append("      })\n");
+        sb.append("      .addCase(update").append(name).append(".fulfilled, (state) => { state.saving = false; })\n");
         sb.append("      .addCase(update").append(name).append(".rejected, (state, action) => { state.saving = false; state.error = action.error.message ?? 'Erro ao atualizar'; })\n");
         sb.append("      .addCase(delete").append(name).append(".fulfilled, (state, action) => {\n");
         sb.append("        state.items = state.items.filter(i => i.id !== action.payload);\n");
@@ -499,7 +560,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  },\n");
         sb.append("});\n\n");
 
-        sb.append("export const { clearCurrent, clearError } = ").append(camel).append("Slice.actions;\n");
+        sb.append("export const { clearCurrent, clearError, searchFulfilled } = ").append(camel).append("Slice.actions;\n");
         sb.append("export default ").append(camel).append("Slice.reducer;\n");
 
         writeTs(sb.toString(), new File(frontendDir, "store/slices/" + camel + "Slice.ts"));
@@ -515,38 +576,60 @@ public class FrontendGenerator extends AbstractGenerator {
         String camel = NamingUtils.toCamelCase(name);
         String plural = NamingUtils.toPlural(camel);
         String pluralPascal = NamingUtils.toPascalCase(plural);
+        String apiPath = entity.getApiPath() != null ? entity.getApiPath()
+                : "/api/v1/" + NamingUtils.toPlural(NamingUtils.toSnakeCase(name)).replace("_", "-");
 
         List<FieldDefinition> responseFields = entity.getFields().stream()
                 .filter(FieldDefinition::isInResponse).toList();
 
+        boolean hasFilters = entity.hasFilters();
+        boolean hasExportImport = entity.getExportImport() != null && entity.getExportImport().isEnabled();
+        List<ActionDefinition> httpActions = entity.getActions().stream()
+                .filter(a -> a.getHttpMethod() != null && a.isRequiresId()).toList();
+
         StringBuilder sb = new StringBuilder();
         sb.append("import { useEffect, useState } from 'react';\n");
-        sb.append("import { useNavigate } from 'react-router-dom';\n");
+        sb.append("import { useNavigate, useLocation } from 'react-router-dom';\n");
         sb.append("import { useAppDispatch, useAppSelector } from '../../store/hooks';\n");
-        sb.append("import { fetch").append(pluralPascal).append(", delete").append(name).append(" } from '../../store/slices/").append(camel).append("Slice';\n");
+        if (hasFilters) {
+            sb.append("import { fetch").append(pluralPascal).append(", delete").append(name).append(", searchFulfilled } from '../../store/slices/").append(camel).append("Slice';\n");
+        } else {
+            sb.append("import { fetch").append(pluralPascal).append(", delete").append(name).append(" } from '../../store/slices/").append(camel).append("Slice';\n");
+        }
         sb.append("import {\n");
-        sb.append("  Box, Chip, IconButton, Paper, Table, TableBody,\n");
+        sb.append("  Box, Button, Chip, IconButton, Menu, MenuItem, Paper, Stack, Table, TableBody,\n");
         sb.append("  TableCell, TableContainer, TableHead, TableRow,\n");
         sb.append("  Tooltip, Snackbar, Alert, Fade, Skeleton, TablePagination,\n");
         sb.append("} from '@mui/material';\n");
-        sb.append("import { Edit, Delete } from '@mui/icons-material';\n");
+        sb.append("import { Edit, Delete, Visibility, MoreVert");
+        if (hasExportImport) {
+            sb.append(", FileDownload, FileUpload");
+        }
+        sb.append(" } from '@mui/icons-material';\n");
+        sb.append("import axios from 'axios';\n");
         sb.append("import PageHeader from '../../components/shared/PageHeader';\n");
         sb.append("import ConfirmDialog from '../../components/shared/ConfirmDialog';\n");
         sb.append("import EmptyState from '../../components/shared/EmptyState';\n");
-        sb.append("import StatusChip from '../../components/shared/StatusChip';\n\n");
+        sb.append("import StatusChip from '../../components/shared/StatusChip';\n");
+        if (hasFilters) {
+            sb.append("import ").append(name).append("FilterPanel from '../../components/").append(camel).append("/").append(name).append("FilterPanel';\n");
+        }
+        sb.append("\n");
 
         sb.append("export default function List").append(name).append("Page() {\n");
         sb.append("  const dispatch = useAppDispatch();\n");
         sb.append("  const navigate = useNavigate();\n");
+        sb.append("  const location = useLocation();\n");
         sb.append("  const { items, loading, totalElements } = useAppSelector((s) => s.").append(camel).append(");\n");
         sb.append("  const [page, setPage] = useState(0);\n");
         sb.append("  const [rowsPerPage, setRowsPerPage] = useState(10);\n");
         sb.append("  const [deleteId, setDeleteId] = useState<number | null>(null);\n");
-        sb.append("  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });\n\n");
-
-        sb.append("  useEffect(() => {\n");
-        sb.append("    dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
-        sb.append("  }, [dispatch, page, rowsPerPage]);\n\n");
+        sb.append("  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });\n");
+        if (!httpActions.isEmpty()) {
+            sb.append("  const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);\n");
+            sb.append("  const [actionMenuId, setActionMenuId] = useState<number | null>(null);\n");
+        }
+        sb.append("\n");
 
         sb.append("  const handleDelete = async () => {\n");
         sb.append("    if (deleteId == null) return;\n");
@@ -559,17 +642,76 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("    setDeleteId(null);\n");
         sb.append("  };\n\n");
 
-        // Check if entity has enum fields for StatusChip
-        boolean hasEnum = entity.getFields().stream().anyMatch(f -> "Enum".equalsIgnoreCase(f.getType()));
+        // Filter search handler
+        if (hasFilters) {
+            sb.append("  const [filterActive, setFilterActive] = useState<Record<string, unknown> | null>(null);\n\n");
+            sb.append("  const handleSearch = (filter: Record<string, unknown>) => {\n");
+            sb.append("    setFilterActive(Object.keys(filter).length > 0 ? filter : null);\n");
+            sb.append("    setPage(0);\n");
+            sb.append("  };\n\n");
+        }
 
-        sb.append("  if (!loading && (!items || items.length === 0)) {\n");
-        sb.append("    return (\n");
-        sb.append("      <Box>\n");
-        sb.append("        <PageHeader title=\"").append(name).append("\" subtitle=\"Gerencie seus registros\" />\n");
-        sb.append("        <EmptyState actionLabel=\"Criar ").append(name).append("\" onAction={() => navigate('/").append(plural).append("/new')} />\n");
-        sb.append("      </Box>\n");
-        sb.append("    );\n");
-        sb.append("  }\n\n");
+        // Single useEffect for data fetching
+        sb.append("  useEffect(() => {\n");
+        if (hasFilters) {
+            sb.append("    if (filterActive) {\n");
+            sb.append("      axios.post('").append(apiPath).append("/search', filterActive, { params: { page, size: rowsPerPage } })\n");
+            sb.append("        .then(res => dispatch(searchFulfilled(res.data))).catch(() => {});\n");
+            sb.append("    } else {\n");
+            sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
+            sb.append("    }\n");
+            sb.append("  }, [dispatch, filterActive, page, rowsPerPage, location.key]);\n\n");
+        } else {
+            sb.append("    dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
+            sb.append("  }, [dispatch, page, rowsPerPage, location.key]);\n\n");
+        }
+
+        // Export handlers
+        if (hasExportImport) {
+            List<String> formats = entity.getExportImport().getFormats();
+            for (String fmt : formats) {
+                sb.append("  const handleExport").append(fmt.substring(0,1).toUpperCase()).append(fmt.substring(1)).append(" = () => {\n");
+                sb.append("    window.open('").append(apiPath).append("/export/").append(fmt).append("', '_blank');\n");
+                sb.append("  };\n\n");
+
+                sb.append("  const handleImport").append(fmt.substring(0,1).toUpperCase()).append(fmt.substring(1)).append(" = async (file: File) => {\n");
+                sb.append("    const formData = new FormData();\n");
+                sb.append("    formData.append('file', file);\n");
+                sb.append("    try {\n");
+                sb.append("      const res = await axios.post('").append(apiPath).append("/import/").append(fmt).append("', formData, { headers: { 'Content-Type': 'multipart/form-data' } });\n");
+                sb.append("      setSnackbar({ open: true, message: res.data.message ?? 'Importado com sucesso!', severity: 'success' });\n");
+                sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
+                sb.append("    } catch {\n");
+                sb.append("      setSnackbar({ open: true, message: 'Erro ao importar arquivo.', severity: 'error' });\n");
+                sb.append("    }\n");
+                sb.append("  };\n\n");
+            }
+        }
+
+        // Action execution handlers
+        if (!httpActions.isEmpty()) {
+            sb.append("  const handleActionClick = (event: React.MouseEvent<HTMLElement>, id: number) => {\n");
+            sb.append("    setActionMenuAnchor(event.currentTarget);\n");
+            sb.append("    setActionMenuId(id);\n");
+            sb.append("  };\n\n");
+            sb.append("  const handleActionClose = () => {\n");
+            sb.append("    setActionMenuAnchor(null);\n");
+            sb.append("    setActionMenuId(null);\n");
+            sb.append("  };\n\n");
+
+            sb.append("  const executeAction = async (actionPath: string, method: string) => {\n");
+            sb.append("    if (actionMenuId == null) return;\n");
+            sb.append("    try {\n");
+            sb.append("      const url = `").append(apiPath).append("${actionPath.replace('{id}', String(actionMenuId))}`;\n");
+            sb.append("      await axios({ method, url });\n");
+            sb.append("      setSnackbar({ open: true, message: 'Ação executada com sucesso!', severity: 'success' });\n");
+            sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
+            sb.append("    } catch {\n");
+            sb.append("      setSnackbar({ open: true, message: 'Erro ao executar ação.', severity: 'error' });\n");
+            sb.append("    }\n");
+            sb.append("    handleActionClose();\n");
+            sb.append("  };\n\n");
+        }
 
         sb.append("  return (\n");
         sb.append("    <Fade in>\n");
@@ -581,21 +723,41 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("          onAction={() => navigate('/").append(plural).append("/new')}\n");
         sb.append("        />\n\n");
 
-        sb.append("        <TableContainer component={Paper} sx={{ borderRadius: 3 }}>\n");
-        sb.append("          <Table>\n");
+        // Export/Import toolbar
+        if (hasExportImport) {
+            List<String> formats = entity.getExportImport().getFormats();
+            sb.append("        <Paper variant=\"outlined\" sx={{ p: 1.5, mb: 2, borderRadius: 2, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>\n");
+            for (String fmt : formats) {
+                String fmtLabel = fmt.substring(0,1).toUpperCase() + fmt.substring(1);
+                String fmtUpper = fmt.toUpperCase();
+                sb.append("          <Button size=\"small\" startIcon={<FileDownload />} onClick={handleExport").append(fmtLabel).append("}>").append(fmtUpper).append("</Button>\n");
+                sb.append("          <Button size=\"small\" color=\"secondary\" startIcon={<FileUpload />} component=\"label\">Importar ").append(fmtUpper).append("<input type=\"file\" hidden accept=\"").append("csv".equals(fmt) ? ".csv" : ".xlsx,.xls").append("\" onChange={(e) => { if (e.target.files?.[0]) handleImport").append(fmtLabel).append("(e.target.files[0]); e.target.value = ''; }} /></Button>\n");
+            }
+            sb.append("        </Paper>\n\n");
+        }
+
+        // Filter panel
+        if (hasFilters) {
+            sb.append("        <").append(name).append("FilterPanel onSearch={handleSearch} />\n\n");
+        }
+
+        sb.append("        {!loading && (!items || items.length === 0) ? (\n");
+        sb.append("          <EmptyState actionLabel=\"Criar ").append(name).append("\" onAction={() => navigate('/").append(plural).append("/new')} />\n");
+        sb.append("        ) : (\n");
+        sb.append("        <TableContainer component={Paper} sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(25, 118, 210, 0.08)', overflowX: 'auto' }}>\n");
+        sb.append("          <Table sx={{ minWidth: 650 }}>\n");
         sb.append("            <TableHead>\n");
         sb.append("              <TableRow>\n");
         sb.append("                <TableCell>ID</TableCell>\n");
         for (FieldDefinition f : responseFields) {
             sb.append("                <TableCell>").append(NamingUtils.toHumanLabel(f.getName())).append("</TableCell>\n");
         }
-        // Show relation name in table
         for (RelationDefinition r : entity.getRelations()) {
             if (r.isInResponse() && "ManyToOne".equals(r.getType())) {
                 sb.append("                <TableCell>").append(NamingUtils.toHumanLabel(r.getFieldName())).append("</TableCell>\n");
             }
         }
-        sb.append("                <TableCell align=\"right\">Ações</TableCell>\n");
+        sb.append("                <TableCell align=\"center\">Ações</TableCell>\n");
         sb.append("              </TableRow>\n");
         sb.append("            </TableHead>\n");
         sb.append("            <TableBody>\n");
@@ -614,7 +776,7 @@ public class FrontendGenerator extends AbstractGenerator {
             if ("Enum".equalsIgnoreCase(f.getType())) {
                 sb.append("                    <TableCell><StatusChip value={item.").append(f.getName()).append(" as unknown as string} /></TableCell>\n");
             } else {
-                sb.append("                    <TableCell>{String(item.").append(f.getName()).append(" ?? '-')}</TableCell>\n");
+                sb.append("                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{String(item.").append(f.getName()).append(" ?? '-')}</TableCell>\n");
             }
         }
         for (RelationDefinition r : entity.getRelations()) {
@@ -622,13 +784,23 @@ public class FrontendGenerator extends AbstractGenerator {
                 sb.append("                    <TableCell>{(item.").append(r.getFieldName()).append(" as Record<string, unknown>)?.name as string ?? '-'}</TableCell>\n");
             }
         }
-        sb.append("                    <TableCell align=\"right\">\n");
-        sb.append("                      <Tooltip title=\"Editar\">\n");
-        sb.append("                        <IconButton color=\"primary\" onClick={() => navigate(`/").append(plural).append("/${item.id}`)}><Edit /></IconButton>\n");
-        sb.append("                      </Tooltip>\n");
-        sb.append("                      <Tooltip title=\"Excluir\">\n");
-        sb.append("                        <IconButton color=\"error\" onClick={() => setDeleteId(item.id!)}><Delete /></IconButton>\n");
-        sb.append("                      </Tooltip>\n");
+        sb.append("                    <TableCell align=\"center\">\n");
+        sb.append("                      <Stack direction=\"row\" spacing={0} justifyContent=\"center\" flexWrap=\"nowrap\">\n");
+        sb.append("                        <Tooltip title=\"Visualizar\">\n");
+        sb.append("                          <IconButton size=\"small\" color=\"info\" onClick={() => navigate(`/").append(plural).append("/${item.id}/view`)}><Visibility fontSize=\"small\" /></IconButton>\n");
+        sb.append("                        </Tooltip>\n");
+        sb.append("                        <Tooltip title=\"Editar\">\n");
+        sb.append("                          <IconButton size=\"small\" color=\"primary\" onClick={() => navigate(`/").append(plural).append("/${item.id}`)}><Edit fontSize=\"small\" /></IconButton>\n");
+        sb.append("                        </Tooltip>\n");
+        sb.append("                        <Tooltip title=\"Excluir\">\n");
+        sb.append("                          <IconButton size=\"small\" color=\"error\" onClick={() => setDeleteId(item.id!)}><Delete fontSize=\"small\" /></IconButton>\n");
+        sb.append("                        </Tooltip>\n");
+        if (!httpActions.isEmpty()) {
+            sb.append("                        <Tooltip title=\"Mais ações\">\n");
+            sb.append("                          <IconButton size=\"small\" onClick={(e) => handleActionClick(e, item.id!)}><MoreVert fontSize=\"small\" /></IconButton>\n");
+            sb.append("                        </Tooltip>\n");
+        }
+        sb.append("                      </Stack>\n");
         sb.append("                    </TableCell>\n");
         sb.append("                  </TableRow>\n");
         sb.append("                ))\n");
@@ -640,9 +812,21 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("            rowsPerPage={rowsPerPage}\n");
         sb.append("            onPageChange={(_, p) => setPage(p)}\n");
         sb.append("            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}\n");
-        sb.append("            labelRowsPerPage=\"Linhas por página\"\n");
+        sb.append("            labelRowsPerPage=\"Por página\"\n");
         sb.append("          />\n");
-        sb.append("        </TableContainer>\n\n");
+        sb.append("        </TableContainer>\n");
+        sb.append("        )}\n\n");
+
+        // Actions menu
+        if (!httpActions.isEmpty()) {
+            sb.append("        <Menu anchorEl={actionMenuAnchor} open={Boolean(actionMenuAnchor)} onClose={handleActionClose}>\n");
+            for (ActionDefinition a : httpActions) {
+                String label = NamingUtils.toHumanLabel(a.getName());
+                String path = a.getApiPath() != null ? a.getApiPath() : "/{id}/" + a.getName();
+                sb.append("          <MenuItem onClick={() => executeAction('").append(path).append("', '").append(a.getHttpMethod().toLowerCase()).append("')}>").append(label).append("</MenuItem>\n");
+            }
+            sb.append("        </Menu>\n\n");
+        }
 
         sb.append("        <ConfirmDialog\n");
         sb.append("          open={deleteId != null}\n");
@@ -761,8 +945,8 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("          <Typography variant=\"h4\">{isEdit ? 'Editar' : 'Novo'} ").append(name).append("</Typography>\n");
         sb.append("        </Stack>\n\n");
 
-        sb.append("        <Paper component=\"form\" onSubmit={handleSubmit} sx={{ p: 4, maxWidth: 700, borderRadius: 3 }}>\n");
-        sb.append("          <Typography variant=\"h6\" color=\"text.secondary\" mb={2}>Informações</Typography>\n");
+        sb.append("        <Paper component=\"form\" onSubmit={handleSubmit} sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: { sm: '100%', md: 700 }, borderRadius: 3, boxShadow: '0 4px 20px rgba(25, 118, 210, 0.08)' }}>\n");
+        sb.append("          <Typography variant=\"h6\" color=\"primary\" fontWeight={600} mb={2}>Dados</Typography>\n");
 
         // Regular fields
         for (FieldDefinition f : requestFields) {
@@ -808,11 +992,8 @@ public class FrontendGenerator extends AbstractGenerator {
             }
         }
 
-        // Relation fields with EntitySelect
+        // Relation fields with EntitySelect (integrado, sem separador)
         if (!manyToOneRelations.isEmpty()) {
-            sb.append("\n          <Divider sx={{ my: 3 }} />\n");
-            sb.append("          <Typography variant=\"h6\" color=\"text.secondary\" mb={2}>Relacionamentos</Typography>\n\n");
-
             for (RelationDefinition r : manyToOneRelations) {
                 String targetName = r.getTargetEntity();
                 String targetCamel = NamingUtils.toCamelCase(targetName);
@@ -981,7 +1162,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("                py: 1.2,\n");
         sb.append("                bgcolor: active ? 'primary.main' : 'transparent',\n");
         sb.append("                color: active ? '#fff' : 'text.primary',\n");
-        sb.append("                '&:hover': { bgcolor: active ? 'primary.dark' : 'rgba(99, 102, 241, 0.06)' },\n");
+        sb.append("                '&:hover': { bgcolor: active ? 'primary.dark' : 'rgba(25, 118, 210, 0.06)' },\n");
         sb.append("                transition: 'all 0.2s ease',\n");
         sb.append("              }}\n");
         sb.append("            >\n");
@@ -1068,8 +1249,10 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("              component=\"main\"\n");
         sb.append("              sx={{\n");
         sb.append("                flexGrow: 1,\n");
-        sb.append("                p: 4,\n");
-        sb.append("                pt: 10,\n");
+        sb.append("                minWidth: 0,\n");
+        sb.append("                px: { xs: 2, sm: 3, md: 4 },\n");
+        sb.append("                pb: { xs: 2, sm: 3, md: 4 },\n");
+        sb.append("                pt: { xs: 10, sm: 12 },\n");
         sb.append("                ml: isMobile ? 0 : `${DRAWER_WIDTH}px`,\n");
         sb.append("                bgcolor: 'background.default',\n");
         sb.append("                minHeight: '100vh',\n");
@@ -1191,19 +1374,19 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  return (\n");
         sb.append("    <Fade in>\n");
         sb.append("      <Box>\n");
-        sb.append("        <Stack direction=\"row\" alignItems=\"center\" justifyContent=\"space-between\" mb={3}>\n");
+        sb.append("        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent=\"space-between\" spacing={2} mb={3}>\n");
         sb.append("          <Stack direction=\"row\" alignItems=\"center\" spacing={2}>\n");
         sb.append("            <Button startIcon={<ArrowBack />} onClick={() => navigate('/").append(plural).append("')} color=\"inherit\">Voltar</Button>\n");
         sb.append("            <Typography variant=\"h4\">").append(name).append(" #{current.id}</Typography>\n");
         sb.append("          </Stack>\n");
-        sb.append("          <Stack direction=\"row\" spacing={1}>\n");
+        sb.append("          <Stack direction=\"row\" spacing={1} flexWrap=\"wrap\" useFlexGap>\n");
         sb.append("            <Button variant=\"contained\" startIcon={<Edit />} onClick={() => navigate(`/").append(plural).append("/${id}`)}>Editar</Button>\n");
         sb.append("            <Button variant=\"outlined\" color=\"error\" startIcon={<Delete />} onClick={() => setConfirmDelete(true)}>Excluir</Button>\n");
         sb.append("          </Stack>\n");
         sb.append("        </Stack>\n\n");
 
-        sb.append("        <Paper sx={{ p: 4, borderRadius: 3 }}>\n");
-        sb.append("          <Typography variant=\"h6\" color=\"text.secondary\" mb={2}>Informações</Typography>\n");
+        sb.append("        <Paper sx={{ p: 4, borderRadius: 3, boxShadow: '0 4px 20px rgba(25, 118, 210, 0.08)' }}>\n");
+        sb.append("          <Typography variant=\"h6\" color=\"primary\" fontWeight={600} mb={2}>Detalhes</Typography>\n");
         sb.append("          <Grid container spacing={3}>\n");
 
         for (FieldDefinition f : responseFields) {

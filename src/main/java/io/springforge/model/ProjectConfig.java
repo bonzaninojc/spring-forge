@@ -92,6 +92,12 @@ public class ProjectConfig {
      */
     private boolean generateSecurity = false;
 
+    /**
+     * Se true, gera configuração de cache (Spring Cache + Redis ou Caffeine).
+     * Default: false
+     */
+    private boolean generateCache = false;
+
     // --- Getters e Setters ---
 
     public String getBasePackage() { return basePackage; }
@@ -138,4 +144,7 @@ public class ProjectConfig {
 
     public boolean isGenerateSecurity() { return generateSecurity; }
     public void setGenerateSecurity(boolean generateSecurity) { this.generateSecurity = generateSecurity; }
+
+    public boolean isGenerateCache() { return generateCache; }
+    public void setGenerateCache(boolean generateCache) { this.generateCache = generateCache; }
 }

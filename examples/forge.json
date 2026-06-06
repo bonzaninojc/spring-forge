@@ -1,4 +1,5 @@
 {
+  "$schema": "./forge-schema.json",
   "project": {
     "basePackage": "com.myapp",
     "name": "MyEcommerceApp",
@@ -11,7 +12,8 @@
     "generateSpringEvents": true,
     "generateScheduled": true,
     "generateTests": true,
-    "generateSecurity": true
+    "generateSecurity": true,
+    "generateCache": true
   },
   "entities": [
     {
@@ -22,14 +24,25 @@
       "apiPath": "/api/v1/categories",
       "openApiTags": ["Categories"],
       "roles": ["ADMIN", "USER"],
+      "cache": {
+        "enabled": true,
+        "ttlSeconds": 900,
+        "maxSize": 200,
+        "provider": "redis"
+      },
+      "exportImport": {
+        "enabled": true,
+        "formats": ["csv"],
+        "exportFields": ["name", "description", "active"]
+      },
       "fields": [
         { "name": "name",        "type": "String",  "required": true,  "unique": true, "maxLength": 100 },
         { "name": "description", "type": "String",  "required": false, "maxLength": 500 },
         { "name": "active",      "type": "Boolean", "required": false, "defaultValue": "true" }
       ],
       "filters": [
-        { "name": "name", "type": "String", "label": "Nome" },
-        { "name": "active", "type": "Boolean", "label": "Ativo" }
+        { "name": "name", "type": "String", "label": "Nome", "operator": "STARTS_WITH" },
+        { "name": "active", "type": "Boolean", "label": "Ativo", "operator": "EQUALS" }
       ],
       "relations": [],
       "actions": []
@@ -42,6 +55,18 @@
       "apiPath": "/api/v1/products",
       "openApiTags": ["Products", "Inventory"],
       "roles": ["ADMIN", "MANAGER"],
+      "cache": {
+        "enabled": true,
+        "ttlSeconds": 600,
+        "maxSize": 1000,
+        "provider": "redis"
+      },
+      "exportImport": {
+        "enabled": true,
+        "formats": ["csv", "excel"],
+        "exportFields": ["name", "sku", "price", "stock", "status"],
+        "importFields": ["name", "sku", "price", "stock", "status"]
+      },
       "fields": [
         { "name": "name",        "type": "String",     "required": true,  "maxLength": 200, "minLength": 3 },
         { "name": "description", "type": "String",     "required": false, "maxLength": 2000 },
@@ -51,10 +76,12 @@
         { "name": "status",      "type": "Enum",       "enumValues": ["ACTIVE", "INACTIVE", "OUT_OF_STOCK"], "required": true }
       ],
       "filters": [
-        { "name": "name", "type": "String", "label": "Nome do produto" },
-        { "name": "status", "type": "Enum", "enumValues": ["ACTIVE", "INACTIVE", "OUT_OF_STOCK"], "label": "Status" },
-        { "name": "priceMin", "type": "BigDecimal", "label": "Preço mínimo" },
-        { "name": "priceMax", "type": "BigDecimal", "label": "Preço máximo" }
+        { "name": "name", "type": "String", "label": "Nome do produto", "operator": "CONTAINS" },
+        { "name": "sku", "type": "String", "label": "SKU", "operator": "STARTS_WITH" },
+        { "name": "status", "type": "Enum", "enumValues": ["ACTIVE", "INACTIVE", "OUT_OF_STOCK"], "label": "Status", "operator": "EQUALS" },
+        { "name": "priceMin", "type": "BigDecimal", "label": "Preço mínimo", "operator": "GREATER_THAN_OR_EQUAL", "targetField": "price" },
+        { "name": "priceMax", "type": "BigDecimal", "label": "Preço máximo", "operator": "LESS_THAN_OR_EQUAL", "targetField": "price" },
+        { "name": "stockMin", "type": "Integer", "label": "Estoque mínimo", "operator": "GREATER_THAN_OR_EQUAL", "targetField": "stock" }
       ],
       "relations": [
         { "type": "ManyToOne", "targetEntity": "Category", "fieldName": "category", "fetch": "LAZY", "cascade": "MERGE,PERSIST" }
@@ -147,6 +174,14 @@
       "apiPath": "/api/v1/orders",
       "openApiTags": ["Orders"],
       "roles": ["ADMIN"],
+      "cache": {
+        "enabled": false
+      },
+      "exportImport": {
+        "enabled": true,
+        "formats": ["csv", "excel"],
+        "exportFields": ["customerName", "customerEmail", "total", "status"]
+      },
       "fields": [
         { "name": "customerName",  "type": "String",     "required": true,  "maxLength": 200 },
         { "name": "customerEmail", "type": "String",     "required": true,  "maxLength": 200, "validations": ["@jakarta.validation.constraints.Email"] },
@@ -155,10 +190,12 @@
         { "name": "notes",         "type": "String",     "required": false, "maxLength": 1000 }
       ],
       "filters": [
-        { "name": "customerName", "type": "String", "label": "Cliente" },
+        { "name": "customerName", "type": "String", "label": "Cliente", "operator": "CONTAINS" },
+        { "name": "customerEmail", "type": "String", "label": "Email", "operator": "STARTS_WITH" },
         { "name": "status", "type": "Enum", "enumValues": ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"], "label": "Status" },
-        { "name": "totalMin", "type": "BigDecimal", "label": "Total mínimo" },
-        { "name": "totalMax", "type": "BigDecimal", "label": "Total máximo" }
+        { "name": "totalMin", "type": "BigDecimal", "label": "Total mínimo", "operator": "GREATER_THAN_OR_EQUAL", "targetField": "total" },
+        { "name": "totalMax", "type": "BigDecimal", "label": "Total máximo", "operator": "LESS_THAN_OR_EQUAL", "targetField": "total" },
+        { "name": "hasNotes", "type": "String", "label": "Tem observações", "operator": "IS_NOT_NULL", "targetField": "notes" }
       ],
       "relations": [],
       "queues": [
@@ -173,7 +210,7 @@
       "actions": [
         {
           "name": "confirm",
-          "description": "Confirma pedido pendente e inicia processamento. Publica evento de confirmação.",
+          "description": "Confirma pedido pendente e inicia processamento.",
           "httpMethod": "POST",
           "apiPath": "/{id}/confirm",
           "requiresId": true,

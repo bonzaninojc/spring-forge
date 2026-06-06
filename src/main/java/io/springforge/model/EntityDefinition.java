@@ -32,6 +32,12 @@ public class EntityDefinition {
     /** Filtros de busca para a entidade (endpoint POST /search) */
     private List<FilterDefinition> filters = new ArrayList<>();
 
+    /** Configuração de cache para a entidade */
+    private CacheDefinition cache;
+
+    /** Configuração de export/import para a entidade */
+    private ExportImportDefinition exportImport;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -82,6 +88,14 @@ public class EntityDefinition {
     public List<FilterDefinition> getFilters() { return filters; }
     public void setFilters(List<FilterDefinition> filters) { this.filters = filters; }
     public boolean hasFilters() { return filters != null && !filters.isEmpty(); }
+
+    public CacheDefinition getCache() { return cache; }
+    public void setCache(CacheDefinition cache) { this.cache = cache; }
+    public boolean hasCache() { return cache != null && cache.isEnabled(); }
+
+    public ExportImportDefinition getExportImport() { return exportImport; }
+    public void setExportImport(ExportImportDefinition exportImport) { this.exportImport = exportImport; }
+    public boolean hasExportImport() { return exportImport != null && exportImport.isEnabled(); }
 
     /** Retorna todas as queues: as da entidade + as das actions */
     public List<QueueDefinition> getAllQueues() {

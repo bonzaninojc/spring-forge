@@ -4,6 +4,7 @@ import io.springforge.model.ActionDefinition;
 import io.springforge.model.EntityDefinition;
 import io.springforge.model.FieldDefinition;
 import io.springforge.model.ForgeDefinition;
+import io.springforge.model.RelationDefinition;
 import io.springforge.util.NamingUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
@@ -63,6 +64,13 @@ public class DtoGenerator extends AbstractGenerator {
             writeFieldWithValidations(w, f, false);
         }
 
+        // ManyToOne relations — add {fieldName}Id
+        for (RelationDefinition r : entity.getRelations()) {
+            if ("ManyToOne".equals(r.getType())) {
+                w.line("private Long " + r.getFieldName() + "Id;").blank();
+            }
+        }
+
         w.unindent();
         w.line("    // ── Getters & Setters ──────────────────────────────────────────────────────────").blank();
         w.indent();
@@ -71,6 +79,15 @@ public class DtoGenerator extends AbstractGenerator {
             if (!f.isInRequest()) continue;
             String type = "Enum".equalsIgnoreCase(f.getType()) ? "String" : NamingUtils.toJavaType(f.getType());
             writeGetterSetter(w, f, type);
+        }
+
+        // ManyToOne relation getters/setters
+        for (RelationDefinition r : entity.getRelations()) {
+            if ("ManyToOne".equals(r.getType())) {
+                String cap = NamingUtils.toPascalCase(r.getFieldName()) + "Id";
+                w.line("public Long get" + cap + "() { return " + r.getFieldName() + "Id; }");
+                w.line("public void set" + cap + "(Long " + r.getFieldName() + "Id) { this." + r.getFieldName() + "Id = " + r.getFieldName() + "Id; }").blank();
+            }
         }
 
         w.unindent().line("}");
@@ -102,6 +119,13 @@ public class DtoGenerator extends AbstractGenerator {
             w.line("private LocalDateTime updatedAt;").blank();
         }
 
+        // ManyToOne relations — add {fieldName}Id in response
+        for (RelationDefinition r : entity.getRelations()) {
+            if ("ManyToOne".equals(r.getType()) && r.isInResponse()) {
+                w.line("private Long " + r.getFieldName() + "Id;").blank();
+            }
+        }
+
         w.unindent();
         w.line("    // ── Getters & Setters ──────────────────────────────────────────────────────────").blank();
         w.indent();
@@ -123,6 +147,15 @@ public class DtoGenerator extends AbstractGenerator {
              .line("public LocalDateTime getUpdatedAt() { return updatedAt; }")
              .line("public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }")
              .blank();
+        }
+
+        // ManyToOne relation getters/setters in response
+        for (RelationDefinition r : entity.getRelations()) {
+            if ("ManyToOne".equals(r.getType()) && r.isInResponse()) {
+                String cap = NamingUtils.toPascalCase(r.getFieldName()) + "Id";
+                w.line("public Long get" + cap + "() { return " + r.getFieldName() + "Id; }");
+                w.line("public void set" + cap + "(Long " + r.getFieldName() + "Id) { this." + r.getFieldName() + "Id = " + r.getFieldName() + "Id; }").blank();
+            }
         }
 
         w.unindent().line("}");
