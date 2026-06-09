@@ -45,7 +45,7 @@ A proposta é simples: **você descreve suas entidades, campos, relacionamentos 
 | 📋 **Auditoria** | `createdAt` e `updatedAt` automáticos |
 | 🔀 **Reverse Engineering** | Gera `forge.json` a partir de banco existente |
 | 📐 **JSON Schema** | Validação + autocomplete na IDE para o `forge.json` |
-| 🖥️ **Dashboard Web** | Editor visual local para montar o `forge.json` (auto-shutdown) |
+| 🖥️ **Dashboard Web** | Editor visual com diagrama ER, preview de código, reverse engineering integrado e auto-shutdown |
 
 ---
 
@@ -531,14 +531,17 @@ Abre automaticamente `http://localhost:4200` no browser.
 
 **O que o dashboard oferece:**
 - Editor visual de entidades, campos e relacionamentos
+- Diagrama ER interativo com drag & drop e criação de relacionamentos (modo "Conectar")
+- Preview de código gerado com syntax highlighting Java (por layer: Entity, Controller, Service, Repository, DTO, Mapper)
+- Reverse engineering integrado — conecte ao banco direto pelo dashboard sem precisar da CLI
 - Configuração de filtros com operadores (CONTAINS, IN, BETWEEN...)
 - Configuração de export/import (formatos, campos)
 - Configuração do projeto com checkboxes para todas as flags
 - Validação em tempo real com feedback de erros
-- Botão "Gerar" que salva e executa a geração
+- Botão "Gerar" com seleção de entidades específicas
 - Aba JSON para edição raw quando necessário
 - Toast notifications com resultado da operação
-- Auto-shutdown: fecha o browser e o server libera a porta automaticamente
+- Auto-shutdown: fecha o browser e o server libera a porta automaticamente (heartbeat com timeout de 10s)
 - Funciona em qualquer IDE — é um servidor web local
 
 ---

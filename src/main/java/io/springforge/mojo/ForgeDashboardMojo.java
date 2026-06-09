@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import io.springforge.generator.*;
+import io.springforge.model.EntityDefinition;
 import io.springforge.model.ForgeDefinition;
 import io.springforge.parser.ForgeJsonParser;
 import org.apache.maven.plugin.AbstractMojo;
@@ -18,9 +20,8 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -32,10 +33,10 @@ import java.util.stream.Collectors;
  *   mvn spring-forge:ui -Dforge.ui.port=4200
  */
 @Mojo(
-    name = "ui",
-    defaultPhase = LifecyclePhase.NONE,
-    requiresProject = true,
-    threadSafe = true
+        name = "ui",
+        defaultPhase = LifecyclePhase.NONE,
+        requiresProject = true,
+        threadSafe = true
 )
 public class ForgeDashboardMojo extends AbstractMojo {
 
@@ -69,6 +70,7 @@ public class ForgeDashboardMojo extends AbstractMojo {
             server.createContext("/api/generate", this::handleGenerate);
             server.createContext("/api/validate", this::handleValidate);
             server.createContext("/api/reverse", this::handleReverse);
+            server.createContext("/api/preview", this::handlePreview);
             server.createContext("/api/heartbeat", this::handleHeartbeat);
 
             // Serve frontend estático
@@ -172,8 +174,8 @@ public class ForgeDashboardMojo extends AbstractMojo {
                     Object ent = reqBody.get("entities");
                     if (ent instanceof List<?> list && !list.isEmpty()) {
                         entitiesFilter = list.stream()
-                            .map(Object::toString)
-                            .collect(Collectors.joining(","));
+                                .map(Object::toString)
+                                .collect(Collectors.joining(","));
                     }
                 } catch (Exception ignored) {}
             }
@@ -181,8 +183,8 @@ public class ForgeDashboardMojo extends AbstractMojo {
             ForgeJsonParser parser = new ForgeJsonParser();
             ForgeDefinition def = parser.parse(inputFile);
             int entityCount = entitiesFilter.isEmpty()
-                ? def.getEntities().size()
-                : entitiesFilter.split(",").length;
+                    ? def.getEntities().size()
+                    : entitiesFilter.split(",").length;
 
             // Executa geração via ProcessBuilder
             List<String> cmd = new ArrayList<>(List.of("mvn", "spring-forge:generate", "-q"));
@@ -198,9 +200,9 @@ public class ForgeDashboardMojo extends AbstractMojo {
 
             if (exitCode == 0) {
                 sendJson(ex, 200, Map.of(
-                    "success", true,
-                    "message", entityCount + " entidade(s) gerada(s) com sucesso",
-                    "output", output
+                        "success", true,
+                        "message", entityCount + " entidade(s) gerada(s) com sucesso",
+                        "output", output
                 ));
             } else {
                 sendJson(ex, 500, Map.of("error", "Falha na geração", "output", output));
@@ -237,12 +239,12 @@ public class ForgeDashboardMojo extends AbstractMojo {
 
             // Executa via ProcessBuilder para reutilizar o Mojo existente
             List<String> cmd = new ArrayList<>(List.of(
-                "mvn", "spring-forge:reverse", "-q",
-                "-Dforge.jdbcUrl=" + jdbcUrl,
-                "-Dforge.jdbcUser=" + jdbcUser,
-                "-Dforge.jdbcPassword=" + jdbcPassword,
-                "-Dforge.basePackage=" + basePackage,
-                "-Dforge.output=" + inputFile.getPath()
+                    "mvn", "spring-forge:reverse", "-q",
+                    "-Dforge.jdbcUrl=" + jdbcUrl,
+                    "-Dforge.jdbcUser=" + jdbcUser,
+                    "-Dforge.jdbcPassword=" + jdbcPassword,
+                    "-Dforge.basePackage=" + basePackage,
+                    "-Dforge.output=" + inputFile.getPath()
             ));
             if (schema != null && !schema.isBlank()) {
                 cmd.add("-Dforge.schema=" + schema);
@@ -259,9 +261,9 @@ public class ForgeDashboardMojo extends AbstractMojo {
                 // Relê o forge.json gerado para devolver ao frontend
                 String content = Files.readString(inputFile.toPath(), StandardCharsets.UTF_8);
                 sendJson(ex, 200, Map.of(
-                    "success", true,
-                    "message", "Reverse engineering concluído! forge.json atualizado.",
-                    "forge", mapper.readValue(content, Object.class)
+                        "success", true,
+                        "message", "Reverse engineering concluído! forge.json atualizado.",
+                        "forge", mapper.readValue(content, Object.class)
                 ));
             } else {
                 sendJson(ex, 500, Map.of("error", "Falha no reverse engineering", "output", output));
@@ -289,9 +291,9 @@ public class ForgeDashboardMojo extends AbstractMojo {
                 ForgeJsonParser parser = new ForgeJsonParser();
                 ForgeDefinition def = parser.parse(tempFile);
                 sendJson(ex, 200, Map.of(
-                    "valid", true,
-                    "entities", def.getEntities().size(),
-                    "message", "forge.json válido — " + def.getEntities().size() + " entidade(s)"
+                        "valid", true,
+                        "entities", def.getEntities().size(),
+                        "message", "forge.json válido — " + def.getEntities().size() + " entidade(s)"
                 ));
             } catch (MojoExecutionException e) {
                 sendJson(ex, 200, Map.of("valid", false, "message", e.getMessage()));
@@ -300,6 +302,82 @@ public class ForgeDashboardMojo extends AbstractMojo {
             }
         } catch (Exception e) {
             sendJson(ex, 500, Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // POST /api/preview — gera preview do código para uma entidade
+    // ═══════════════════════════════════════════════════════════════
+
+    private void handlePreview(HttpExchange ex) throws IOException {
+        setCors(ex);
+        if ("OPTIONS".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(204, -1); return; }
+        if (!"POST".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
+
+        try {
+            String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> req = mapper.readValue(body, Map.class);
+
+            String entityName = (String) req.get("entity");
+            String layer = (String) req.getOrDefault("layer", "entity");
+
+            // Carrega o forge.json atual
+            File tempForge = inputFile.exists() ? inputFile : null;
+            if (tempForge == null) {
+                sendJson(ex, 404, Map.of("error", "forge.json não encontrado"));
+                return;
+            }
+
+            ForgeJsonParser parser = new ForgeJsonParser();
+            ForgeDefinition def = parser.parse(tempForge);
+
+            EntityDefinition targetEntity = def.getEntities().stream()
+                    .filter(e -> e.getName().equals(entityName))
+                    .findFirst().orElse(null);
+
+            if (targetEntity == null) {
+                sendJson(ex, 404, Map.of("error", "Entidade não encontrada: " + entityName));
+                return;
+            }
+
+            // Gera em diretório temporário e lê o arquivo
+            Path tempDir = Files.createTempDirectory("forge-preview-");
+            try {
+                AbstractGenerator gen = switch (layer) {
+                    case "entity"     -> new EntityGenerator(getLog());
+                    case "controller" -> new ControllerGenerator(getLog());
+                    case "service"    -> new ServiceGenerator(getLog());
+                    case "repository" -> new RepositoryGenerator(getLog());
+                    case "dto"        -> new DtoGenerator(getLog());
+                    case "mapper"     -> new MapperGenerator(getLog());
+                    default           -> new EntityGenerator(getLog());
+                };
+                gen.generate(def, targetEntity, tempDir.toFile());
+
+                // Coleta todos os .java gerados
+                Map<String, String> files = new LinkedHashMap<>();
+                try (var walk = Files.walk(tempDir)) {
+                    walk.filter(p -> p.toString().endsWith(".java"))
+                            .sorted()
+                            .forEach(p -> {
+                                try {
+                                    String relativeName = tempDir.relativize(p).toString()
+                                            .replace(File.separatorChar, '/');
+                                    files.put(relativeName, Files.readString(p, StandardCharsets.UTF_8));
+                                } catch (IOException ignored) {}
+                            });
+                }
+
+                sendJson(ex, 200, Map.of("files", files, "entity", entityName, "layer", layer));
+            } finally {
+                // Limpa temp dir
+                try (var walk = Files.walk(tempDir)) {
+                    walk.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
+                }
+            }
+        } catch (Exception e) {
+            sendJson(ex, 500, Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro interno"));
         }
     }
 
