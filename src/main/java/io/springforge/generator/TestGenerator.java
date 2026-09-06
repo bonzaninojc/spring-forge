@@ -1,14 +1,13 @@
 package io.springforge.generator;
 
-import io.springforge.model.ActionDefinition;
-import io.springforge.model.EntityDefinition;
-import io.springforge.model.FieldDefinition;
-import io.springforge.model.ForgeDefinition;
-import io.springforge.util.NamingUtils;
+import java.io.File;
+
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
 
-import java.io.File;
+import io.springforge.model.EntityDefinition;
+import io.springforge.model.ForgeDefinition;
+import io.springforge.util.NamingUtils;
 
 /**
  * Gera testes unitários (JUnit 5 + Mockito) para Service e Controller.
@@ -27,20 +26,268 @@ public class TestGenerator extends AbstractGenerator {
 
         String name = entity.getName();
 
-        if (entity.shouldGenerate("service")) {
-            String testPkg = serviceImplPkg(def);
-            writeFile(buildServiceTest(def, entity),
-                      testJavaFile(outDir, testPkg, name + "ServiceImplTest"), testPkg);
-        }
-
-        if (entity.shouldGenerate("controller")) {
-            String testPkg = controllerPkg(def);
-            writeFile(buildControllerTest(def, entity),
-                      testJavaFile(outDir, testPkg, name + "ControllerTest"), testPkg);
+        if (def.getProject().isHexagonal()) {
+            // Hexagonal: testa UseCaseImpl (mock do RepositoryPort) + RestAdapter (mock do UseCase)
+            if (entity.shouldGenerate("service")) {
+                String testPkg = hexAppServicePkg(def);
+                writeFile(buildUseCaseTest(def, entity),
+                          testJavaFile(outDir, testPkg, name + "UseCaseImplTest"), testPkg);
+            }
+            if (entity.shouldGenerate("controller")) {
+                String testPkg = hexRestAdapterPkg(def);
+                writeFile(buildRestAdapterTest(def, entity),
+                          testJavaFile(outDir, testPkg, name + "RestAdapterTest"), testPkg);
+            }
+        } else {
+            // Layered: comportamento original
+            if (entity.shouldGenerate("service")) {
+                String testPkg = serviceImplPkg(def, entity);
+                writeFile(buildServiceTest(def, entity),
+                          testJavaFile(outDir, testPkg, name + "ServiceImplTest"), testPkg);
+            }
+            if (entity.shouldGenerate("controller")) {
+                String testPkg = controllerPkg(def, entity);
+                writeFile(buildControllerTest(def, entity),
+                          testJavaFile(outDir, testPkg, name + "ControllerTest"), testPkg);
+            }
         }
     }
 
-    private File testJavaFile(File outDir, String packageName, String className) {
+    // ── Hexagonal: Use-Case Test ─────────────────────────────────────────────────
+
+    private CodeWriter buildUseCaseTest(ForgeDefinition def, EntityDefinition entity) {
+        String name       = entity.getName();
+        String dtoPkg     = dtoPkg(def, entity);
+        String outPortPkg = hexPortOutPkg(def);
+        String excPkg     = exceptionPkg(def, entity);
+        String domainPkg  = hexDomainModelPkg(def);
+
+        CodeWriter w = new CodeWriter();
+
+        w.imp("org.junit.jupiter.api.BeforeEach")
+         .imp("org.junit.jupiter.api.Test")
+         .imp("org.junit.jupiter.api.extension.ExtendWith")
+         .imp("org.mockito.InjectMocks")
+         .imp("org.mockito.Mock")
+         .imp("org.mockito.junit.jupiter.MockitoExtension")
+         .imp("org.springframework.data.domain.Page")
+         .imp("org.springframework.data.domain.PageImpl")
+         .imp("org.springframework.data.domain.PageRequest")
+         .imp("org.springframework.data.domain.Pageable")
+         .imp("java.util.List")
+         .imp("java.util.Optional")
+         .imp(domainPkg  + "." + name)
+         .imp(outPortPkg + "." + name + "RepositoryPort")
+         .imp(dtoPkg     + "." + name + "RequestDTO")
+         .imp(dtoPkg     + "." + name + "ResponseDTO")
+         .imp(excPkg     + "." + name + "NotFoundException")
+         .imp("static org.mockito.Mockito.*")
+         .imp("static org.junit.jupiter.api.Assertions.*");
+
+        w.javadoc("Testes unitários para " + name + "UseCaseImpl (Hexagonal).\nGerado pelo Spring Forge.");
+        w.line("@ExtendWith(MockitoExtension.class)")
+         .line("class " + name + "UseCaseImplTest {").blank();
+        w.indent();
+
+        w.line("@Mock")
+         .line("private " + name + "RepositoryPort repositoryPort;").blank();
+        w.line("@InjectMocks")
+         .line("private " + name + "UseCaseImpl useCase;").blank();
+
+        w.line("private " + name + " domain;")
+         .line("private " + name + "RequestDTO requestDTO;")
+         .line("private " + name + "ResponseDTO responseDTO;").blank();
+
+        w.line("@BeforeEach")
+         .line("void setUp() {")
+         .indent()
+         .line("domain = new " + name + "();")
+         .line("domain.setId(1L);")
+         .line("requestDTO = new " + name + "RequestDTO();")
+         .line("responseDTO = new " + name + "ResponseDTO();")
+         .line("responseDTO.setId(1L);")
+         .unindent().line("}").blank();
+
+        // findAll
+        w.line("@Test")
+         .line("void findAll_ShouldReturnPage() {")
+         .indent()
+         .line("Pageable pageable = PageRequest.of(0, 20);")
+         .line("Page<" + name + "> page = new PageImpl<>(List.of(domain));");
+        if (entity.isSoftDelete()) {
+            w.line("when(repositoryPort.findByIdActive(1L)).thenReturn(Optional.of(domain));");
+        }
+        w.line("when(repositoryPort.findAll(pageable)).thenReturn(page);")
+         .blank()
+         .line("Page<" + name + "ResponseDTO> result = useCase.findAll(pageable);")
+         .blank()
+         .line("assertNotNull(result);")
+         .line("assertEquals(1, result.getTotalElements());")
+         .unindent().line("}").blank();
+
+        // findById - found
+        w.line("@Test")
+         .line("void findById_WhenExists_ShouldReturn() {")
+         .indent();
+        if (entity.isSoftDelete()) {
+            w.line("when(repositoryPort.findByIdActive(1L)).thenReturn(Optional.of(domain));");
+        } else {
+            w.line("when(repositoryPort.findById(1L)).thenReturn(Optional.of(domain));");
+        }
+        w.blank()
+         .line(name + "ResponseDTO result = useCase.findById(1L);")
+         .blank()
+         .line("assertNotNull(result);")
+         .line("assertEquals(1L, result.getId());")
+         .unindent().line("}").blank();
+
+        // findById - not found
+        w.line("@Test")
+         .line("void findById_WhenNotExists_ShouldThrow() {")
+         .indent();
+        if (entity.isSoftDelete()) {
+            w.line("when(repositoryPort.findByIdActive(99L)).thenReturn(Optional.empty());");
+        } else {
+            w.line("when(repositoryPort.findById(99L)).thenReturn(Optional.empty());");
+        }
+        w.blank()
+         .line("assertThrows(" + name + "NotFoundException.class, () -> useCase.findById(99L));")
+         .unindent().line("}").blank();
+
+        // create
+        w.line("@Test")
+         .line("void create_ShouldSaveAndReturn() {")
+         .indent()
+         .line("when(repositoryPort.save(any())).thenReturn(domain);")
+         .blank()
+         .line(name + "ResponseDTO result = useCase.create(requestDTO);")
+         .blank()
+         .line("assertNotNull(result);")
+         .line("verify(repositoryPort).save(any());")
+         .unindent().line("}").blank();
+
+        // delete
+        w.line("@Test")
+         .line("void delete_WhenExists_ShouldDelete() {")
+         .indent();
+        if (entity.isSoftDelete()) {
+            w.line("when(repositoryPort.findByIdActive(1L)).thenReturn(Optional.of(domain));");
+        } else {
+            w.line("when(repositoryPort.findById(1L)).thenReturn(Optional.of(domain));");
+        }
+        w.blank()
+         .line("assertDoesNotThrow(() -> useCase.delete(1L));");
+        if (entity.isSoftDelete()) {
+            w.line("verify(repositoryPort).save(domain);");
+        } else {
+            w.line("verify(repositoryPort).deleteById(1L);");
+        }
+        w.unindent().line("}").blank();
+
+        w.unindent().line("}");
+        return w;
+    }
+
+    // ── Hexagonal: REST Adapter Test ──────────────────────────────────────────────
+
+    private CodeWriter buildRestAdapterTest(ForgeDefinition def, EntityDefinition entity) {
+        String name   = entity.getName();
+        String dtoPkg = dtoPkg(def, entity);
+        String inPkg  = hexPortInPkg(def);
+
+        String apiPath = entity.getApiPath() != null ? entity.getApiPath()
+            : "/api/v1/" + io.springforge.util.NamingUtils.toSnakeCase(
+                io.springforge.util.NamingUtils.toPlural(name)).replace("_", "-");
+
+        CodeWriter w = new CodeWriter();
+
+        w.imp("org.junit.jupiter.api.Test")
+         .imp("org.springframework.beans.factory.annotation.Autowired")
+         .imp("org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest")
+         .imp("org.springframework.boot.test.mock.mockito.MockBean")
+         .imp("org.springframework.data.domain.Page")
+         .imp("org.springframework.data.domain.PageImpl")
+         .imp("org.springframework.http.MediaType")
+         .imp("org.springframework.test.web.servlet.MockMvc")
+         .imp("java.util.List")
+         .imp(dtoPkg + "." + name + "RequestDTO")
+         .imp(dtoPkg + "." + name + "ResponseDTO")
+         .imp(inPkg  + "." + name + "UseCase")
+         .imp("static org.mockito.Mockito.*")
+         .imp("static org.mockito.ArgumentMatchers.any")
+         .imp("static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*")
+         .imp("static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*");
+
+        w.javadoc("Testes de integração para " + name + "RestAdapter (Hexagonal).\nGerado pelo Spring Forge.");
+        w.line("@WebMvcTest(" + name + "RestAdapter.class)");
+        w.line("class " + name + "RestAdapterTest {").blank();
+        w.indent();
+
+        w.line("@Autowired")
+         .line("private MockMvc mockMvc;").blank();
+        w.line("@MockBean")
+         .line("private " + name + "UseCase useCase;").blank();
+
+        // GET /
+        w.line("@Test")
+         .line("void findAll_ShouldReturn200() throws Exception {")
+         .indent()
+         .line(name + "ResponseDTO dto = new " + name + "ResponseDTO();")
+         .line("dto.setId(1L);")
+         .line("Page<" + name + "ResponseDTO> page = new PageImpl<>(List.of(dto));")
+         .line("when(useCase.findAll(any())).thenReturn(page);")
+         .blank()
+         .line("mockMvc.perform(get(\"" + apiPath + "\")")
+         .line("        .contentType(MediaType.APPLICATION_JSON))")
+         .line("        .andExpect(status().isOk())")
+         .line("        .andExpect(jsonPath(\"$.content\").isArray());")
+         .unindent().line("}").blank();
+
+        // GET /{id}
+        w.line("@Test")
+         .line("void findById_ShouldReturn200() throws Exception {")
+         .indent()
+         .line(name + "ResponseDTO dto = new " + name + "ResponseDTO();")
+         .line("dto.setId(1L);")
+         .line("when(useCase.findById(1L)).thenReturn(dto);")
+         .blank()
+         .line("mockMvc.perform(get(\"" + apiPath + "/1\")")
+         .line("        .contentType(MediaType.APPLICATION_JSON))")
+         .line("        .andExpect(status().isOk())")
+         .line("        .andExpect(jsonPath(\"$.id\").value(1));")
+         .unindent().line("}").blank();
+
+        // POST /
+        w.line("@Test")
+         .line("void create_ShouldReturn201() throws Exception {")
+         .indent()
+         .line(name + "ResponseDTO dto = new " + name + "ResponseDTO();")
+         .line("dto.setId(1L);")
+         .line("when(useCase.create(any())).thenReturn(dto);")
+         .blank()
+         .line("mockMvc.perform(post(\"" + apiPath + "\")")
+         .line("        .contentType(MediaType.APPLICATION_JSON)")
+         .line("        .content(\"{}\"))")
+         .line("        .andExpect(status().isCreated())")
+         .line("        .andExpect(jsonPath(\"$.id\").value(1));")
+         .unindent().line("}").blank();
+
+        // DELETE /{id}
+        w.line("@Test")
+         .line("void delete_ShouldReturn204() throws Exception {")
+         .indent()
+         .line("doNothing().when(useCase).delete(1L);")
+         .blank()
+         .line("mockMvc.perform(delete(\"" + apiPath + "/1\")")
+         .line("        .contentType(MediaType.APPLICATION_JSON))")
+         .line("        .andExpect(status().isNoContent());")
+         .unindent().line("}").blank();
+
+        w.unindent().line("}");
+        return w;
+    }
+
+        private File testJavaFile(File outDir, String packageName, String className) {
         File testDir = new File(outDir.getParentFile(), outDir.getName() + "-test");
         String path = packageName.replace('.', '/');
         return new File(testDir, path + "/" + className + ".java");
@@ -50,10 +297,10 @@ public class TestGenerator extends AbstractGenerator {
 
     private CodeWriter buildServiceTest(ForgeDefinition def, EntityDefinition entity) {
         String name    = entity.getName();
-        String entPkg  = entityPkg(def);
-        String dtoPkg  = dtoPkg(def);
-        String repoPkg = repoPkg(def);
-        String excPkg  = exceptionPkg(def);
+        String entPkg  = entityPkg(def, entity);
+        String dtoPkg  = dtoPkg(def, entity);
+        String repoPkg = repoPkg(def, entity);
+        String excPkg  = exceptionPkg(def, entity);
         boolean useMapper = def.getProject().isGenerateMappers();
 
         CodeWriter w = new CodeWriter();
@@ -76,7 +323,7 @@ public class TestGenerator extends AbstractGenerator {
          .imp(dtoPkg  + "." + name + "ResponseDTO")
          .imp(excPkg  + "." + name + "NotFoundException");
 
-        if (useMapper) w.imp(mapperPkg(def) + "." + name + "Mapper");
+        if (useMapper) w.imp(mapperPkg(def, entity) + "." + name + "Mapper");
 
         w.imp("static org.mockito.Mockito.*")
          .imp("static org.junit.jupiter.api.Assertions.*");
@@ -210,9 +457,9 @@ public class TestGenerator extends AbstractGenerator {
 
     private CodeWriter buildControllerTest(ForgeDefinition def, EntityDefinition entity) {
         String name    = entity.getName();
-        String dtoPkg  = dtoPkg(def);
-        String svcPkg  = servicePkg(def);
-        String ctrlPkg = controllerPkg(def);
+        String dtoPkg  = dtoPkg(def, entity);
+        String svcPkg  = servicePkg(def, entity);
+        String ctrlPkg = controllerPkg(def, entity);
 
         String apiPath = entity.getApiPath() != null ? entity.getApiPath()
             : "/api/v1/" + NamingUtils.toSnakeCase(NamingUtils.toPlural(name)).replace("_", "-");
@@ -237,16 +484,8 @@ public class TestGenerator extends AbstractGenerator {
          .imp("static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*")
          .imp("static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*");
 
-        if (def.getProject().isGenerateSecurity()) {
-            w.imp("org.springframework.security.test.context.support.WithMockUser")
-             .imp("org.springframework.context.annotation.Import");
-        }
-
         w.javadoc("Testes de integração para " + name + "Controller.\nGerado pelo Spring Forge.");
         w.line("@WebMvcTest(" + name + "Controller.class)");
-        if (def.getProject().isGenerateSecurity()) {
-            w.line("@WithMockUser(roles = \"ADMIN\")");
-        }
         w.line("class " + name + "ControllerTest {").blank();
         w.indent();
 

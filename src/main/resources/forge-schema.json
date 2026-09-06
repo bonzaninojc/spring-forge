@@ -4,181 +4,906 @@
   "title": "Spring Forge Definition",
   "description": "Schema de validação para o arquivo forge.json usado pelo Spring Forge Maven Plugin.",
   "type": "object",
-  "required": ["project", "entities"],
+  "required": [
+    "project",
+    "entities"
+  ],
   "properties": {
-    "$schema": { "type": "string" },
-    "project": { "$ref": "#/definitions/ProjectConfig" },
+    "$schema": {
+      "type": "string"
+    },
+    "project": {
+      "$ref": "#/definitions/ProjectConfig"
+    },
     "entities": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/definitions/EntityDefinition" }
+      "items": {
+        "$ref": "#/definitions/EntityDefinition"
+      }
     }
   },
   "definitions": {
     "ProjectConfig": {
       "type": "object",
-      "required": ["basePackage", "name"],
+      "required": [
+        "basePackage",
+        "name"
+      ],
       "properties": {
-        "basePackage": { "type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)*$", "description": "Pacote base Java, ex: com.myapp" },
-        "name": { "type": "string", "minLength": 1, "description": "Nome do projeto" },
-        "database": { "type": "string", "enum": ["postgres", "mysql", "mongodb", "h2"], "default": "postgres" },
-        "generateMigrations": { "type": "boolean", "default": false },
-        "generateMappers": { "type": "boolean", "default": true },
-        "generateFrontend": { "type": "boolean", "default": false },
-        "generateRabbitMQ": { "type": "boolean", "default": false },
-        "generateOpenApi": { "type": "boolean", "default": false },
-        "generateSpringEvents": { "type": "boolean", "default": false },
-        "generateScheduled": { "type": "boolean", "default": false },
-        "generateTests": { "type": "boolean", "default": false },
-        "generateSecurity": { "type": "boolean", "default": false },
-        "generateCache": { "type": "boolean", "default": false },
-        "frontendDir": { "type": "string", "default": "frontend/src" }
+        "basePackage": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)*$",
+          "description": "Pacote base Java, ex: com.myapp"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Nome do projeto"
+        },
+        "database": {
+          "type": "string",
+          "enum": [
+            "postgres",
+            "mysql",
+            "mongodb",
+            "h2"
+          ],
+          "default": "postgres"
+        },
+        "generateMigrations": {
+          "type": "boolean",
+          "default": false
+        },
+        "generateMappers": {
+          "type": "boolean",
+          "default": true
+        },
+        "generateFrontend": {
+          "type": "boolean",
+          "default": false
+        },
+        "generateRabbitMQ": {
+          "type": "boolean",
+          "default": false
+        },
+        "generateOpenApi": {
+          "type": "boolean",
+          "default": false
+        },
+        "generateSpringEvents": {
+          "type": "boolean",
+          "default": false
+        },
+        "generateScheduled": {
+          "type": "boolean",
+          "default": false
+        },
+        "generateTests": {
+          "type": "boolean",
+          "default": false
+        },
+        "generateCache": {
+          "type": "boolean",
+          "default": false
+        },
+        "frontendDir": {
+          "type": "string",
+          "default": "frontend/src"
+        },
+        "architectureStyle": {
+          "type": "string",
+          "enum": [
+            "LAYERED",
+            "HEXAGONAL",
+            "MODULAR"
+          ],
+          "default": "LAYERED",
+          "description": "Estilo de arquitetura gerado"
+        },
+        "outputDir": {
+          "type": "string",
+          "description": "Diretório Java opcional. Quando ausente, usa forge.outputDir do Maven."
+        },
+        "migrationsDir": {
+          "type": "string",
+          "description": "Diretório opcional de migrations. Quando ausente, usa target/generated-resources/spring-forge/db/migration."
+        },
+        "templates": {
+          "$ref": "#/definitions/TemplateConfig"
+        },
+        "frontend": {
+          "$ref": "#/definitions/FrontendConfig"
+        },
+        "pom": {
+          "$ref": "#/definitions/PomConfig"
+        }
       },
       "additionalProperties": false
     },
     "EntityDefinition": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string", "pattern": "^[A-Z][a-zA-Z0-9]*$", "description": "Nome em PascalCase" },
-        "tableName": { "type": "string" },
-        "auditable": { "type": "boolean", "default": true },
-        "softDelete": { "type": "boolean", "default": false },
-        "apiPath": { "type": "string", "pattern": "^/.*" },
-        "openApiTags": { "type": "array", "items": { "type": "string" } },
-        "roles": { "type": "array", "items": { "type": "string" } },
-        "generate": { "type": "array", "items": { "type": "string", "enum": ["entity", "repository", "service", "controller", "dto", "mapper", "migration", "frontend"] } },
-        "fields": { "type": "array", "items": { "$ref": "#/definitions/FieldDefinition" } },
-        "relations": { "type": "array", "items": { "$ref": "#/definitions/RelationDefinition" } },
-        "actions": { "type": "array", "items": { "$ref": "#/definitions/ActionDefinition" } },
-        "queues": { "type": "array", "items": { "$ref": "#/definitions/QueueDefinition" } },
-        "events": { "type": "array", "items": { "$ref": "#/definitions/EventDefinition" } },
-        "filters": { "type": "array", "items": { "$ref": "#/definitions/FilterDefinition" } },
-        "cache": { "$ref": "#/definitions/CacheDefinition" },
-        "exportImport": { "$ref": "#/definitions/ExportImportDefinition" }
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][a-zA-Z0-9]*$",
+          "description": "Nome em PascalCase"
+        },
+        "tableName": {
+          "type": "string"
+        },
+        "auditable": {
+          "type": "boolean",
+          "default": true
+        },
+        "softDelete": {
+          "type": "boolean",
+          "default": false
+        },
+        "apiPath": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9_{}\\-/.]*$"
+        },
+        "openApiTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generate": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "entity",
+              "repository",
+              "service",
+              "controller",
+              "dto",
+              "mapper",
+              "migration",
+              "frontend"
+            ]
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FieldDefinition"
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RelationDefinition"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ActionDefinition"
+          }
+        },
+        "queues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/QueueDefinition"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EventDefinition"
+          }
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FilterDefinition"
+          }
+        },
+        "cache": {
+          "$ref": "#/definitions/CacheDefinition"
+        },
+        "exportImport": {
+          "$ref": "#/definitions/ExportImportDefinition"
+        },
+        "crud": {
+          "$ref": "#/definitions/CrudDefinition"
+        }
       },
       "additionalProperties": false
     },
     "FieldDefinition": {
       "type": "object",
-      "required": ["name", "type"],
+      "required": [
+        "name",
+        "type"
+      ],
       "properties": {
-        "name": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$", "description": "Nome em camelCase" },
-        "type": { "type": "string", "enum": ["String", "Integer", "Long", "Double", "Float", "BigDecimal", "Boolean", "LocalDate", "LocalDateTime", "UUID", "Enum"] },
-        "required": { "type": "boolean", "default": false },
-        "unique": { "type": "boolean", "default": false },
-        "maxLength": { "type": "integer", "minimum": 1 },
-        "minLength": { "type": "integer", "minimum": 0 },
-        "defaultValue": { "type": "string" },
-        "columnName": { "type": "string" },
-        "enumValues": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
-        "validations": { "type": "array", "items": { "type": "string" } },
-        "inResponse": { "type": "boolean", "default": true },
-        "inRequest": { "type": "boolean", "default": true }
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9]*$",
+          "description": "Nome em camelCase"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "String",
+            "Integer",
+            "Long",
+            "Double",
+            "Float",
+            "BigDecimal",
+            "Boolean",
+            "LocalDate",
+            "LocalDateTime",
+            "UUID",
+            "Enum"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "unique": {
+          "type": "boolean",
+          "default": false
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "columnName": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "enumValues": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+          },
+          "minItems": 1
+        },
+        "validations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "inResponse": {
+          "type": "boolean",
+          "default": true
+        },
+        "inRequest": {
+          "type": "boolean",
+          "default": true
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "helperText": {
+          "type": "string"
+        },
+        "precision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "filterable": {
+          "type": "boolean",
+          "default": false
+        },
+        "sortable": {
+          "type": "boolean",
+          "default": false
+        },
+        "readOnly": {
+          "type": "boolean",
+          "default": false
+        }
       },
       "additionalProperties": false,
-      "if": { "properties": { "type": { "const": "Enum" } } },
-      "then": { "required": ["name", "type", "enumValues"] }
+      "if": {
+        "properties": {
+          "type": {
+            "const": "Enum"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "name",
+          "type",
+          "enumValues"
+        ]
+      }
     },
     "RelationDefinition": {
       "type": "object",
-      "required": ["type", "targetEntity", "fieldName"],
+      "required": [
+        "type",
+        "targetEntity",
+        "fieldName"
+      ],
       "properties": {
-        "type": { "type": "string", "enum": ["ManyToOne", "OneToMany", "OneToOne", "ManyToMany"] },
-        "targetEntity": { "type": "string" },
-        "fieldName": { "type": "string" },
-        "fetch": { "type": "string", "enum": ["LAZY", "EAGER"], "default": "LAZY" },
-        "cascade": { "type": "string", "default": "MERGE,PERSIST" },
-        "mappedBy": { "type": "string" },
-        "inResponse": { "type": "boolean", "default": true }
+        "type": {
+          "type": "string",
+          "enum": [
+            "ManyToOne",
+            "OneToMany",
+            "OneToOne",
+            "ManyToMany"
+          ]
+        },
+        "targetEntity": {
+          "type": "string"
+        },
+        "fieldName": {
+          "type": "string"
+        },
+        "fetch": {
+          "type": "string",
+          "enum": [
+            "LAZY",
+            "EAGER"
+          ],
+          "default": "LAZY"
+        },
+        "cascade": {
+          "type": "string",
+          "default": "MERGE,PERSIST"
+        },
+        "mappedBy": {
+          "type": "string"
+        },
+        "inResponse": {
+          "type": "boolean",
+          "default": true
+        },
+        "joinColumn": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "displayField": {
+          "type": "string"
+        },
+        "inRequest": {
+          "type": "boolean",
+          "default": true
+        },
+        "orphanRemoval": {
+          "type": "boolean",
+          "default": false
+        }
       },
       "additionalProperties": false
     },
     "ActionDefinition": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$" },
-        "description": { "type": "string" },
-        "httpMethod": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
-        "apiPath": { "type": "string" },
-        "requiresId": { "type": "boolean", "default": true },
-        "request": { "type": "array", "items": { "$ref": "#/definitions/FieldDefinition" } },
-        "response": { "type": "array", "items": { "$ref": "#/definitions/FieldDefinition" } },
-        "event": { "$ref": "#/definitions/EventDefinition" },
-        "queues": { "type": "array", "items": { "$ref": "#/definitions/QueueDefinition" } },
-        "scheduled": { "type": "boolean", "default": false },
-        "scheduledCron": { "type": "string" },
-        "scheduledFixedRate": { "type": "integer", "minimum": 1 },
-        "openApiTags": { "type": "array", "items": { "type": "string" } },
-        "openApiResponses": { "type": "array", "items": { "$ref": "#/definitions/OpenApiResponse" } },
-        "roles": { "type": "array", "items": { "type": "string" } }
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9]*$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "httpMethod": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        },
+        "apiPath": {
+          "type": "string",
+          "pattern": "^/[A-Za-z0-9_{}\\-/.]*$"
+        },
+        "requiresId": {
+          "type": "boolean",
+          "default": true
+        },
+        "request": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FieldDefinition"
+          }
+        },
+        "response": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FieldDefinition"
+          }
+        },
+        "event": {
+          "$ref": "#/definitions/EventDefinition"
+        },
+        "queues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/QueueDefinition"
+          }
+        },
+        "scheduled": {
+          "type": "boolean",
+          "default": false
+        },
+        "scheduledCron": {
+          "type": "string"
+        },
+        "scheduledFixedRate": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "openApiTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "openApiResponses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OpenApiResponse"
+          }
+        }
       },
       "additionalProperties": false
     },
     "EventDefinition": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "generateListener": { "type": "boolean", "default": false },
-        "async": { "type": "boolean", "default": false },
-        "description": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "generateListener": {
+          "type": "boolean",
+          "default": false
+        },
+        "async": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "QueueDefinition": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "exchange": { "type": "string", "default": "" },
-        "routingKey": { "type": "string" },
-        "durable": { "type": "boolean", "default": true },
-        "direction": { "type": "string", "enum": ["PUBLISH", "CONSUME", "BOTH"], "default": "PUBLISH" },
-        "deadLetterExchange": { "type": "string" },
-        "retryTtlMs": { "type": "integer", "default": 30000, "minimum": 1000 }
+        "name": {
+          "type": "string"
+        },
+        "exchange": {
+          "type": "string",
+          "default": ""
+        },
+        "routingKey": {
+          "type": "string"
+        },
+        "durable": {
+          "type": "boolean",
+          "default": true
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "PUBLISH",
+            "CONSUME",
+            "BOTH"
+          ],
+          "default": "PUBLISH"
+        },
+        "deadLetterExchange": {
+          "type": "string"
+        },
+        "retryTtlMs": {
+          "type": "integer",
+          "default": 30000,
+          "minimum": 1000
+        }
       },
       "additionalProperties": false
     },
     "FilterDefinition": {
       "type": "object",
-      "required": ["name", "type"],
+      "required": [
+        "name",
+        "type"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["String", "Integer", "Long", "Double", "Float", "BigDecimal", "Boolean", "LocalDate", "LocalDateTime", "Enum"] },
-        "label": { "type": "string" },
-        "enumValues": { "type": "array", "items": { "type": "string" } },
-        "operator": { "type": "string", "enum": ["EQUALS", "NOT_EQUALS", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "GREATER_THAN", "GREATER_THAN_OR_EQUAL", "LESS_THAN", "LESS_THAN_OR_EQUAL", "IN", "BETWEEN", "IS_NULL", "IS_NOT_NULL"] },
-        "targetField": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "String",
+            "Integer",
+            "Long",
+            "Double",
+            "Float",
+            "BigDecimal",
+            "Boolean",
+            "LocalDate",
+            "LocalDateTime",
+            "Enum"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "enumValues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "EQUALS",
+            "NOT_EQUALS",
+            "CONTAINS",
+            "STARTS_WITH",
+            "ENDS_WITH",
+            "GREATER_THAN",
+            "GREATER_THAN_OR_EQUAL",
+            "LESS_THAN",
+            "LESS_THAN_OR_EQUAL",
+            "IN",
+            "BETWEEN",
+            "IS_NULL",
+            "IS_NOT_NULL"
+          ]
+        },
+        "targetField": {
+          "type": "string",
+          "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)*$",
+          "description": "Campo alvo na entidade. Aceita caminho aninhado, ex: category.name."
+        }
       },
       "additionalProperties": false
     },
     "CacheDefinition": {
       "type": "object",
       "properties": {
-        "enabled": { "type": "boolean", "default": true },
-        "ttlSeconds": { "type": "integer", "default": 300, "minimum": 1 },
-        "maxSize": { "type": "integer", "default": 500, "minimum": 1 },
-        "provider": { "type": "string", "enum": ["redis", "caffeine"], "default": "redis" }
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "ttlSeconds": {
+          "type": "integer",
+          "default": 300,
+          "minimum": 1
+        },
+        "maxSize": {
+          "type": "integer",
+          "default": 500,
+          "minimum": 1
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "redis",
+            "caffeine"
+          ],
+          "default": "redis"
+        }
       },
       "additionalProperties": false
     },
     "ExportImportDefinition": {
       "type": "object",
       "properties": {
-        "enabled": { "type": "boolean", "default": true },
-        "formats": { "type": "array", "items": { "type": "string", "enum": ["csv", "excel"] }, "default": ["csv"] },
-        "exportFields": { "type": "array", "items": { "type": "string" }, "description": "Campos a exportar (default: todos do response)" },
-        "importFields": { "type": "array", "items": { "type": "string" }, "description": "Campos aceitos no import (default: todos do request)" }
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "excel"
+            ]
+          },
+          "default": [
+            "csv"
+          ]
+        },
+        "exportFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Campos a exportar (default: todos do response)"
+        },
+        "importFields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Campos aceitos no import (default: todos do request)"
+        }
       },
       "additionalProperties": false
     },
     "OpenApiResponse": {
       "type": "object",
-      "required": ["code", "description"],
+      "required": [
+        "code",
+        "description"
+      ],
       "properties": {
-        "code": { "type": "integer" },
-        "description": { "type": "string" }
+        "code": {
+          "type": "integer"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TemplateConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "templateDir": {
+          "type": "string",
+          "default": ".spring-forge/templates"
+        },
+        "outputDir": {
+          "type": "string"
+        },
+        "suffix": {
+          "type": "string",
+          "default": ".tpl"
+        },
+        "overwrite": {
+          "type": "boolean",
+          "default": true
+        },
+        "visualTemplates": {
+          "type": "array",
+          "description": "Templates criados pelo editor visual do dashboard.",
+          "items": {
+            "$ref": "#/definitions/VisualTemplateDefinition"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "VisualTemplateDefinition": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "entity",
+            "global"
+          ],
+          "default": "entity"
+        },
+        "path": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "FrontendConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "react"
+          ],
+          "default": "react"
+        },
+        "ui": {
+          "type": "string",
+          "enum": [
+            "mui"
+          ],
+          "default": "mui"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "redux-toolkit"
+          ],
+          "default": "redux-toolkit"
+        },
+        "forms": {
+          "type": "string",
+          "enum": [
+            "react-hook-form"
+          ],
+          "default": "react-hook-form"
+        },
+        "validation": {
+          "type": "string",
+          "enum": [
+            "zod"
+          ],
+          "default": "zod"
+        },
+        "apiClient": {
+          "type": "boolean",
+          "default": true
+        },
+        "authPages": {
+          "type": "boolean",
+          "default": true
+        },
+        "protectedRoutes": {
+          "type": "boolean",
+          "default": true
+        },
+        "appShell": {
+          "type": "boolean",
+          "default": true
+        },
+        "filterPanel": {
+          "type": "boolean",
+          "default": true
+        },
+        "tableSorting": {
+          "type": "boolean",
+          "default": true
+        },
+        "confirmDialogs": {
+          "type": "boolean",
+          "default": true
+        },
+        "notifications": {
+          "type": "boolean",
+          "default": true
+        },
+        "darkMode": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "CrudDefinition": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "pagination": {
+          "type": "boolean",
+          "default": true
+        },
+        "defaultPageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20
+        },
+        "maxPageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 100
+        },
+        "defaultSort": {
+          "type": "string",
+          "default": "id",
+          "description": "Campo/caminho padrão de ordenação, ex: id ou category.name"
+        },
+        "defaultDirection": {
+          "type": "string",
+          "enum": [
+            "ASC",
+            "DESC",
+            "asc",
+            "desc"
+          ],
+          "default": "ASC"
+        },
+        "sortable": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Campos/caminhos permitidos para sort. Ex: name, price, category.name"
+        },
+        "filterable": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FilterDefinition"
+          },
+          "description": "Filtros gerados. targetField aceita caminho aninhado, ex: category.name"
+        },
+        "bulkOperations": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "PomConfig": {
+      "type": "object",
+      "description": "Configura atualização automática do pom.xml do projeto alvo conforme features habilitadas.",
+      "properties": {
+        "autoUpdate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Se true, spring-forge:generate adiciona dependências ausentes no pom.xml."
+        },
+        "createBackup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Cria pom.xml.spring-forge.bak antes de modificar."
+        },
+        "addComments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Adiciona comentários Spring Forge nos blocos criados."
+        },
+        "managePlugins": {
+          "type": "boolean",
+          "default": true,
+          "description": "Configura plugins auxiliares, como maven-compiler-plugin para MapStruct."
+        }
       },
       "additionalProperties": false
     }

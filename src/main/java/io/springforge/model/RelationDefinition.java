@@ -2,7 +2,7 @@ package io.springforge.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class RelationDefinition {
 
     /**
@@ -41,6 +41,21 @@ public class RelationDefinition {
      */
     private boolean inResponse = true;
 
+    /** Nome da coluna FK. Default: snake_case(fieldName) + _id. */
+    private String joinColumn;
+
+    /** Se true, FK/relacionamento é obrigatório. */
+    private boolean required = false;
+
+    /** Campo da entidade alvo usado para exibição no frontend/DTO. */
+    private String displayField;
+
+    /** Se true, aparece no DTO de request como targetId/ids. */
+    private boolean inRequest = true;
+
+    /** Se true, remove filhos órfãos em OneToMany. */
+    private boolean orphanRemoval = false;
+
     // --- Getters e Setters ---
 
     public String getType() { return type; }
@@ -63,4 +78,20 @@ public class RelationDefinition {
 
     public boolean isInResponse() { return inResponse; }
     public void setInResponse(boolean inResponse) { this.inResponse = inResponse; }
+
+    public String getJoinColumn() { return joinColumn; }
+    public void setJoinColumn(String joinColumn) { this.joinColumn = joinColumn; }
+
+    public boolean isRequired() { return required; }
+    public void setRequired(boolean required) { this.required = required; }
+
+    public String getDisplayField() { return displayField; }
+    public void setDisplayField(String displayField) { this.displayField = displayField; }
+
+    public boolean isInRequest() { return inRequest; }
+    public void setInRequest(boolean inRequest) { this.inRequest = inRequest; }
+
+    public boolean isOrphanRemoval() { return orphanRemoval; }
+    public void setOrphanRemoval(boolean orphanRemoval) { this.orphanRemoval = orphanRemoval; }
+
 }

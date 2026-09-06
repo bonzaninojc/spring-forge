@@ -32,14 +32,24 @@ public class OpenApiEnricher extends AbstractGenerator {
         if (!def.getProject().isGenerateOpenApi()) return;
         if (!entity.shouldGenerate("controller")) return;
 
-        String pkg = controllerPkg(def);
-        writeFile(buildDocs(def, entity, pkg),
-                  javaFile(outDir, pkg, entity.getName() + "ControllerDocs"), pkg);
+        if (def.getProject().isHexagonal()) {
+            // Hexagonal: documenta o RestAdapter no pacote adapter.in.rest
+            String pkg = hexRestAdapterPkg(def);
+            String interfaceName = entity.getName() + "RestAdapterDocs";
+            writeFile(buildDocs(def, entity, pkg, interfaceName),
+                      javaFile(outDir, pkg, interfaceName), pkg);
+        } else {
+            // Layered: documenta o Controller no pacote controller (comportamento original)
+            String pkg = controllerPkg(def, entity);
+            String interfaceName = entity.getName() + "ControllerDocs";
+            writeFile(buildDocs(def, entity, pkg, interfaceName),
+                      javaFile(outDir, pkg, interfaceName), pkg);
+        }
     }
 
-    private CodeWriter buildDocs(ForgeDefinition def, EntityDefinition entity, String pkg) {
+    private CodeWriter buildDocs(ForgeDefinition def, EntityDefinition entity, String pkg, String interfaceName) {
         String name = entity.getName();
-        String dtoPkg = dtoPkg(def);
+        String dtoPkg = dtoPkg(def, entity);
         String apiPath = entity.getApiPath() != null ? entity.getApiPath()
             : "/api/v1/" + NamingUtils.toSnakeCase(NamingUtils.toPlural(name)).replace("_", "-");
 
@@ -74,7 +84,7 @@ public class OpenApiEnricher extends AbstractGenerator {
                 + "Gerado pelo Spring Forge.");
 
         if (tags.size() == 1) {
-            w.line("@Tag(name = \"" + tags.get(0) + "\", description = \"Operações sobre " + name + "\")");
+            w.line("@Tag(name = \"" + javaString(tags.get(0)) + "\", description = \"Operações sobre " + name + "\")");
         } else {
             w.imp("io.swagger.v3.oas.annotations.tags.Tags");
             StringBuilder tagsAnnotation = new StringBuilder("@Tags({");
@@ -85,7 +95,7 @@ public class OpenApiEnricher extends AbstractGenerator {
             tagsAnnotation.append("})");
             w.line(tagsAnnotation.toString());
         }
-        w.line("public interface " + name + "ControllerDocs {").blank();
+        w.line("public interface " + interfaceName + " {").blank();
         w.indent();
 
         // findAll

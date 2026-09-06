@@ -34,7 +34,7 @@ public class RabbitMQGenerator extends AbstractGenerator {
         if (!entity.hasQueues()) return;
 
         List<QueueDefinition> queues = entity.getAllQueues();
-        String pkg = rabbitPkg(def);
+        String pkg = rabbitPkg(def, entity);
 
         writeFile(buildConstants(def, entity, queues, pkg),
                   javaFile(outDir, pkg, entity.getName() + "QueueConstants"), pkg);
@@ -203,7 +203,7 @@ public class RabbitMQGenerator extends AbstractGenerator {
     private CodeWriter buildPublisher(ForgeDefinition def, EntityDefinition entity,
                                       List<QueueDefinition> queues, String pkg) {
         CodeWriter w = new CodeWriter();
-        String dtoPkg = dtoPkg(def);
+        String dtoPkg = dtoPkg(def, entity);
         String constClass = entity.getName() + "QueueConstants";
 
         w.imp("org.springframework.amqp.rabbit.core.RabbitTemplate")
@@ -255,7 +255,7 @@ public class RabbitMQGenerator extends AbstractGenerator {
     private CodeWriter buildConsumer(ForgeDefinition def, EntityDefinition entity,
                                      List<QueueDefinition> queues, String pkg) {
         CodeWriter w = new CodeWriter();
-        String svcPkg = servicePkg(def);
+        String svcPkg = servicePkg(def, entity);
         String constClass = entity.getName() + "QueueConstants";
 
         w.imp("org.springframework.amqp.rabbit.annotation.RabbitListener")
@@ -344,6 +344,12 @@ public class RabbitMQGenerator extends AbstractGenerator {
 
     private String rabbitPkg(ForgeDefinition def) {
         return def.getProject().getBasePackage() + ".messaging";
+    }
+
+    private String rabbitPkg(ForgeDefinition def, EntityDefinition entity) {
+        return def.getProject().isModular()
+            ? moduleBasePkg(def, entity.getName()) + ".messaging"
+            : rabbitPkg(def);
     }
 
     /** "order.confirmed" → "orderConfirmedQueue" style bean name */

@@ -12,7 +12,7 @@ import java.util.List;
  *   "entities": [ ... ]
  * }
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(value = {"$schema"}, ignoreUnknown = false)
 public class ForgeDefinition {
 
     private ProjectConfig project;

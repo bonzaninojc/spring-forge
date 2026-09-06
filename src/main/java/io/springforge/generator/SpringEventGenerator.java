@@ -33,7 +33,7 @@ public class SpringEventGenerator extends AbstractGenerator {
             if (!action.hasEvent()) continue;
 
             EventDefinition event = action.getEvent();
-            String eventPkg = eventPkg(def);
+            String eventPkg = eventPkg(def, entity);
             String eventName = event.getEffectiveName(action.getName());
 
             // Gera a classe do evento
@@ -55,7 +55,7 @@ public class SpringEventGenerator extends AbstractGenerator {
                                        ActionDefinition action, EventDefinition event,
                                        String eventName, String pkg) {
         CodeWriter w = new CodeWriter();
-        String dtoPkg = dtoPkg(def);
+        String dtoPkg = dtoPkg(def, entity);
 
         w.imp("org.springframework.context.ApplicationEvent");
         addFieldImports(w, action.getResponse());
@@ -139,7 +139,9 @@ public class SpringEventGenerator extends AbstractGenerator {
         return w;
     }
 
-    private String eventPkg(ForgeDefinition def) {
-        return def.getProject().getBasePackage() + ".event";
+    private String eventPkg(ForgeDefinition def, EntityDefinition entity) {
+        return def.getProject().isModular()
+            ? moduleBasePkg(def, entity.getName()) + ".event"
+            : def.getProject().getBasePackage() + ".event";
     }
 }

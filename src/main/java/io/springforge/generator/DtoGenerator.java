@@ -20,7 +20,7 @@ public class DtoGenerator extends AbstractGenerator {
     public void generate(ForgeDefinition def, EntityDefinition entity, File outDir) throws MojoExecutionException {
         if (!entity.shouldGenerate("dto")) return;
 
-        String pkg = dtoPkg(def);
+        String pkg = dtoPkg(def, entity);
 
         // DTOs padrão CRUDL
         writeFile(buildRequestDto(def, entity, pkg),

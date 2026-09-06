@@ -1,19 +1,49 @@
 package io.springforge.mojo;
 
-import io.springforge.generator.*;
-import io.springforge.model.EntityDefinition;
-import io.springforge.model.ForgeDefinition;
-import io.springforge.parser.ForgeJsonParser;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.maven.model.Resource;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.*;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.List;
+import io.springforge.generator.AbstractGenerator;
+import io.springforge.generator.CacheGenerator;
+import io.springforge.generator.ControllerGenerator;
+import io.springforge.generator.CustomTemplateGenerator;
+import io.springforge.generator.DtoGenerator;
+import io.springforge.generator.EntityGenerator;
+import io.springforge.generator.ExceptionGenerator;
+import io.springforge.generator.ExportImportGenerator;
+import io.springforge.generator.FilterGenerator;
+import io.springforge.generator.FrontendGenerator;
+import io.springforge.generator.FrontendProjectGenerator;
+import io.springforge.generator.HexagonalAppServiceGenerator;
+import io.springforge.generator.HexagonalDomainModelGenerator;
+import io.springforge.generator.HexagonalPersistenceAdapterGenerator;
+import io.springforge.generator.HexagonalPortGenerator;
+import io.springforge.generator.HexagonalRestAdapterGenerator;
+import io.springforge.generator.MapperGenerator;
+import io.springforge.generator.MigrationGenerator;
+import io.springforge.generator.OpenApiEnricher;
+import io.springforge.generator.PomDependencyEnricher;
+import io.springforge.generator.RabbitMQGenerator;
+import io.springforge.generator.RepositoryGenerator;
+import io.springforge.generator.ScheduledTaskGenerator;
+import io.springforge.generator.ServiceGenerator;
+import io.springforge.generator.SpringEventGenerator;
+import io.springforge.generator.TestGenerator;
+import io.springforge.model.EntityDefinition;
+import io.springforge.model.ForgeDefinition;
+import io.springforge.parser.ForgeJsonParser;
 
 /**
  * Gera código Spring Boot completo a partir de um forge.json.
@@ -78,42 +108,64 @@ public class ForgeGenerateMojo extends AbstractMojo {
             return;
         }
 
-        // Garante que o outputDir nunca aponta para src/main/java (evita duplicate class)
-        validateOutputDir();
-
         getLog().info("╔══════════════════════════════════════╗");
         getLog().info("║      Spring Forge Maven Plugin       ║");
         getLog().info("╚══════════════════════════════════════╝");
         getLog().info("  forge.json : " + inputFile.getPath());
-        getLog().info("  Java out   : " + outputDir.getPath());
 
         // 1. Parse
         ForgeDefinition definition = new ForgeJsonParser().parse(inputFile);
+
+        // Atualiza o pom.xml do projeto alvo quando habilitado em project.pom.autoUpdate.
+        // Executa cedo para garantir que as dependências estejam disponíveis antes de compilar o código gerado.
+        new PomDependencyEnricher(getLog()).enrich(project.getBasedir(), definition);
+
+        applyJsonOutputDir(definition);
+        // Garante que o outputDir nunca aponta para src/main/java (evita duplicate class)
+        validateOutputDir();
+        getLog().info("  Java out   : " + outputDir.getPath());
         getLog().info("  Pacote     : " + definition.getProject().getBasePackage());
         getLog().info("  Entidades  : " + definition.getEntities().size());
+        getLog().info("  Arquitetura: " + definition.getProject().getArchitectureStyle());
 
         // 2. Filtro
         List<EntityDefinition> entities = filterEntities(definition);
 
         // 3. Geradores
-        List<AbstractGenerator> generators = Arrays.asList(
-            new EntityGenerator(getLog()),
-            new RepositoryGenerator(getLog()),
-            new DtoGenerator(getLog()),
-            new FilterGenerator(getLog()),
-            new MapperGenerator(getLog()),
-            new ServiceGenerator(getLog()),
-            new ControllerGenerator(getLog()),
-            new ExceptionGenerator(getLog()),
-            new MigrationGenerator(getLog()),
-            new RabbitMQGenerator(getLog()),
-            new SpringEventGenerator(getLog()),
-            new OpenApiEnricher(getLog()),
-            new ScheduledTaskGenerator(getLog()),
-            new ExportImportGenerator(getLog())
-        );
+        List<AbstractGenerator> generators = new ArrayList<>();
+        if (definition.getProject().isHexagonal()) {
+            generators.addAll(Arrays.asList(
+                new DtoGenerator(getLog()),
+                new ExceptionGenerator(getLog()),
+                new MigrationGenerator(getLog()),
+                new HexagonalDomainModelGenerator(getLog()),
+                new HexagonalPortGenerator(getLog()),
+                new HexagonalAppServiceGenerator(getLog()),
+                new HexagonalPersistenceAdapterGenerator(getLog()),
+                new HexagonalRestAdapterGenerator(getLog()),
+                new OpenApiEnricher(getLog())
+            ));
+        } else {
+            generators.addAll(Arrays.asList(
+                new EntityGenerator(getLog()),
+                new RepositoryGenerator(getLog()),
+                new DtoGenerator(getLog()),
+                new FilterGenerator(getLog()),
+                new MapperGenerator(getLog()),
+                new ServiceGenerator(getLog()),
+                new ControllerGenerator(getLog()),
+                new ExceptionGenerator(getLog()),
+                new MigrationGenerator(getLog()),
+                new RabbitMQGenerator(getLog()),
+                new SpringEventGenerator(getLog()),
+                new OpenApiEnricher(getLog()),
+                new ScheduledTaskGenerator(getLog()),
+                new ExportImportGenerator(getLog())
+            ));
+        }
 
         FrontendGenerator frontendGenerator = new FrontendGenerator(getLog());
+        CustomTemplateGenerator customTemplateGenerator = new CustomTemplateGenerator(getLog(), project.getBasedir());
 
         // 4. Gera
         int total = 0;
@@ -124,8 +176,12 @@ public class ForgeGenerateMojo extends AbstractMojo {
                 gen.generate(definition, entity, outputDir);
             }
             frontendGenerator.generate(definition, entity, outputDir);
+            customTemplateGenerator.generate(definition, entity, outputDir);
             total++;
         }
+
+        // 4.0 Templates globais customizados (_global)
+        customTemplateGenerator.generateGlobalTemplates(definition, outputDir);
 
         // 4.1 Frontend: arquivos globais (store, routes, menu, App)
         frontendGenerator.generateGlobalFiles(definition, outputDir);
@@ -136,10 +192,7 @@ public class ForgeGenerateMojo extends AbstractMojo {
         // 4.3 RabbitMQ: config global (Jackson converter, RabbitTemplate)
         new RabbitMQGenerator(getLog()).generateGlobalConfig(definition, outputDir);
 
-        // 4.4 Security: SecurityConfig + AppRole enum
-        new SecurityGenerator(getLog()).generateGlobalSecurity(definition, outputDir);
-
-        // 4.5 Testes unitários (JUnit 5 + Mockito)
+        // 4.4 Testes unitários (JUnit 5 + Mockito)
         if (definition.getProject().isGenerateTests()) {
             TestGenerator testGen = new TestGenerator(getLog());
             for (EntityDefinition entity : entities) {
@@ -184,6 +237,19 @@ public class ForgeGenerateMojo extends AbstractMojo {
 
         // Auto-gera forge-schema.json na raiz do projeto (se ainda não existir)
         autoGenerateSchema();
+    }
+
+    /**
+     * Permite configurar project.outputDir no forge.json sem perder o parâmetro Maven forge.outputDir.
+     * O JSON só sobrescreve o parâmetro quando o campo vem explicitamente preenchido.
+     */
+    private void applyJsonOutputDir(ForgeDefinition definition) {
+        String configured = definition.getProject().getOutputDir();
+        if (configured == null || configured.isBlank()) return;
+        File configuredFile = new File(configured);
+        outputDir = configuredFile.isAbsolute()
+            ? configuredFile
+            : new File(project.getBasedir(), configured);
     }
 
     private void autoGenerateSchema() {

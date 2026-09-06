@@ -40,7 +40,7 @@ public class ScheduledTaskGenerator extends AbstractGenerator {
 
         if (scheduledActions.isEmpty()) return;
 
-        String pkg = scheduledPkg(def);
+        String pkg = scheduledPkg(def, entity);
         writeFile(buildScheduledTasks(def, entity, scheduledActions, pkg),
                   javaFile(outDir, pkg, entity.getName() + "ScheduledTasks"), pkg);
     }
@@ -48,7 +48,12 @@ public class ScheduledTaskGenerator extends AbstractGenerator {
     private CodeWriter buildScheduledTasks(ForgeDefinition def, EntityDefinition entity,
                                            List<ActionDefinition> actions, String pkg) {
         String name = entity.getName();
-        String svcPkg = servicePkg(def);
+
+        // Hexagonal: injeta o UseCase (port de entrada). Layered: injeta o Service.
+        boolean hexagonal = def.getProject().isHexagonal();
+        String depPkg     = hexagonal ? hexPortInPkg(def)  : servicePkg(def, entity);
+        String depType    = hexagonal ? name + "UseCase"   : name + "Service";
+        String depField   = hexagonal ? "useCase"          : "service";
 
         CodeWriter w = new CodeWriter();
 
@@ -56,7 +61,7 @@ public class ScheduledTaskGenerator extends AbstractGenerator {
          .imp("org.springframework.stereotype.Component")
          .imp("org.slf4j.Logger")
          .imp("org.slf4j.LoggerFactory")
-         .imp(svcPkg + "." + name + "Service");
+         .imp(depPkg + "." + depType);
 
         boolean hasFixedRate = actions.stream().anyMatch(a -> a.getScheduledFixedRate() != null);
         if (hasFixedRate) {
@@ -70,11 +75,11 @@ public class ScheduledTaskGenerator extends AbstractGenerator {
         w.indent();
 
         w.line("private static final Logger log = LoggerFactory.getLogger(" + name + "ScheduledTasks.class);").blank();
-        w.line("private final " + name + "Service service;").blank();
+        w.line("private final " + depType + " " + depField + ";").blank();
 
-        w.line("public " + name + "ScheduledTasks(" + name + "Service service) {")
+        w.line("public " + name + "ScheduledTasks(" + depType + " " + depField + ") {")
          .indent()
-         .line("this.service = service;")
+         .line("this." + depField + " = " + depField + ";")
          .unindent().line("}").blank();
 
         for (ActionDefinition a : actions) {
@@ -85,8 +90,8 @@ public class ScheduledTaskGenerator extends AbstractGenerator {
             w.javadoc(desc + "\nTODO: Verifique os parâmetros antes de ativar em produção.");
             w.line(schedAnnotation);
 
-            // Constrói chamada ao service
-            String serviceCall = buildServiceCall(a);
+            // Constrói chamada ao service/useCase
+            String serviceCall = buildServiceCall(a, depField);
             w.line("public void scheduled" + capitalize(a.getName()) + "() {");
             w.indent();
             w.line("log.info(\"Executing scheduled task: " + a.getName() + "\");");
@@ -118,21 +123,23 @@ public class ScheduledTaskGenerator extends AbstractGenerator {
         return "@Scheduled(cron = \"0 0 * * * *\") // TODO: ajuste o cron";
     }
 
-    private String buildServiceCall(ActionDefinition a) {
+    private String buildServiceCall(ActionDefinition a, String depField) {
         if (a.isRequiresId()) {
             return "// TODO: provide entity ID — scheduled tasks typically iterate or process in batch\n" +
-                   "        // service." + a.getName() + "(id, dto);";
+                   "        // " + depField + "." + a.getName() + "(id, dto);";
         }
         if (a.hasRequest()) {
             return "// TODO: construct request DTO\n" +
                    "        // " + a.getRequestDtoName() + " dto = new " + a.getRequestDtoName() + "();\n" +
-                   "        // service." + a.getName() + "(dto);";
+                   "        // " + depField + "." + a.getName() + "(dto);";
         }
-        return "service." + a.getName() + "();";
+        return depField + "." + a.getName() + "();";
     }
 
 
-    private String scheduledPkg(ForgeDefinition def) {
-        return def.getProject().getBasePackage() + ".scheduled";
+    private String scheduledPkg(ForgeDefinition def, EntityDefinition entity) {
+        return def.getProject().isModular()
+            ? moduleBasePkg(def, entity.getName()) + ".scheduled"
+            : def.getProject().getBasePackage() + ".scheduled";
     }
 }

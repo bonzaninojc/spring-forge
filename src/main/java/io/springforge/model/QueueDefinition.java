@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  *   CONSUME  → gera @RabbitListener na classe ${Entity}MessageConsumer
  *   BOTH     → gera publisher no Service E consumer separado
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class QueueDefinition {
 
     /** Nome da fila, ex: "order.confirmed" */

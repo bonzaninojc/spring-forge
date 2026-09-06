@@ -1,5 +1,16 @@
 package io.springforge.generator;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.List;
+
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.logging.Log;
+
 import io.springforge.model.ActionDefinition;
 import io.springforge.model.EntityDefinition;
 import io.springforge.model.FieldDefinition;
@@ -7,16 +18,6 @@ import io.springforge.model.FilterDefinition;
 import io.springforge.model.ForgeDefinition;
 import io.springforge.model.RelationDefinition;
 import io.springforge.util.NamingUtils;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.logging.Log;
-
-import java.io.File;
-import java.io.OutputStreamWriter;
-import java.io.FileOutputStream;
-import java.io.Writer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.List;
 
 /**
  * Gera frontend React (Vite + MUI + Redux Toolkit) para cada entidade.
@@ -62,6 +63,7 @@ public class FrontendGenerator extends AbstractGenerator {
 
         File frontendDir = resolveFrontendDir(def, outDir);
 
+        generateApiClient(def, frontendDir);
         generateTheme(def, frontendDir);
         generateStore(def, frontendDir);
         generateRoutes(def, frontendDir);
@@ -73,6 +75,34 @@ public class FrontendGenerator extends AbstractGenerator {
 
     private File resolveFrontendDir(ForgeDefinition def, File outDir) {
         return new File(outDir.getParentFile().getParentFile(), def.getProject().getFrontendDir());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // API client + Auth frontend
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private void generateApiClient(ForgeDefinition def, File frontendDir) throws MojoExecutionException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("import axios from 'axios';\n\n");
+        sb.append("const api = axios.create({\n");
+        sb.append("  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',\n");
+        sb.append("});\n\n");
+        sb.append("api.interceptors.request.use((config) => {\n");
+        sb.append("  const token = localStorage.getItem('authToken');\n");
+        sb.append("  if (token) config.headers.Authorization = `Bearer ${token}`;\n");
+        sb.append("  return config;\n");
+        sb.append("});\n\n");
+        sb.append("api.interceptors.response.use(\n");
+        sb.append("  (response) => response,\n");
+        sb.append("  (error) => {\n");
+        sb.append("    if (error.response?.status === 401) {\n");
+        sb.append("      localStorage.removeItem('authToken');\n");
+        sb.append("    }\n");
+        sb.append("    return Promise.reject(error);\n");
+        sb.append("  }\n");
+        sb.append(");\n\n");
+        sb.append("export default api;\n");
+        writeTs(sb.toString(), new File(frontendDir, "api/client.ts"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -229,7 +259,7 @@ public class FrontendGenerator extends AbstractGenerator {
         StringBuilder sb = new StringBuilder();
         sb.append("import { useEffect, useState } from 'react';\n");
         sb.append("import { Autocomplete, TextField, CircularProgress, Box, Typography } from '@mui/material';\n");
-        sb.append("import axios from 'axios';\n\n");
+        sb.append("import api from '../../api/client';\n\n");
         sb.append("interface EntityOption {\n");
         sb.append("  id: number;\n");
         sb.append("  label: string;\n");
@@ -250,7 +280,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  useEffect(() => {\n");
         sb.append("    let active = true;\n");
         sb.append("    setLoading(true);\n");
-        sb.append("    axios.get(apiPath, { params: { size: 100 } })\n");
+        sb.append("    api.get(apiPath, { params: { size: 100 } })\n");
         sb.append("      .then((res) => {\n");
         sb.append("        if (!active) return;\n");
         sb.append("        const data = res.data.content ?? res.data;\n");
@@ -439,7 +469,7 @@ public class FrontendGenerator extends AbstractGenerator {
 
         StringBuilder sb = new StringBuilder();
         sb.append("import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';\n");
-        sb.append("import axios from 'axios';\n\n");
+        sb.append("import api from '../../api/client';\n\n");
 
         // Interface
         sb.append("export interface ").append(name).append(" {\n");
@@ -484,8 +514,8 @@ public class FrontendGenerator extends AbstractGenerator {
         // Thunks
         sb.append("export const fetch").append(pluralPascal).append(" = createAsyncThunk(\n");
         sb.append("  '").append(camel).append("/fetchAll',\n");
-        sb.append("  async (params?: { page?: number; size?: number }) => {\n");
-        sb.append("    const res = await axios.get('").append(apiPath).append("', { params });\n");
+        sb.append("  async (params?: { page?: number; size?: number; sort?: string }) => {\n");
+        sb.append("    const res = await api.get('").append(apiPath).append("', { params });\n");
         sb.append("    return res.data;\n");
         sb.append("  }\n");
         sb.append(");\n\n");
@@ -493,7 +523,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("export const fetch").append(name).append("ById = createAsyncThunk(\n");
         sb.append("  '").append(camel).append("/fetchById',\n");
         sb.append("  async (id: number) => {\n");
-        sb.append("    const res = await axios.get(`").append(apiPath).append("/${id}`);\n");
+        sb.append("    const res = await api.get(`").append(apiPath).append("/${id}`);\n");
         sb.append("    return res.data;\n");
         sb.append("  }\n");
         sb.append(");\n\n");
@@ -501,7 +531,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("export const create").append(name).append(" = createAsyncThunk(\n");
         sb.append("  '").append(camel).append("/create',\n");
         sb.append("  async (data: Partial<").append(name).append(">) => {\n");
-        sb.append("    const res = await axios.post('").append(apiPath).append("', data);\n");
+        sb.append("    const res = await api.post('").append(apiPath).append("', data);\n");
         sb.append("    return res.data;\n");
         sb.append("  }\n");
         sb.append(");\n\n");
@@ -509,7 +539,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("export const update").append(name).append(" = createAsyncThunk(\n");
         sb.append("  '").append(camel).append("/update',\n");
         sb.append("  async ({ id, data }: { id: number; data: Partial<").append(name).append("> }) => {\n");
-        sb.append("    const res = await axios.put(`").append(apiPath).append("/${id}`, data);\n");
+        sb.append("    const res = await api.put(`").append(apiPath).append("/${id}`, data);\n");
         sb.append("    return res.data;\n");
         sb.append("  }\n");
         sb.append(");\n\n");
@@ -517,7 +547,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("export const delete").append(name).append(" = createAsyncThunk(\n");
         sb.append("  '").append(camel).append("/delete',\n");
         sb.append("  async (id: number) => {\n");
-        sb.append("    await axios.delete(`").append(apiPath).append("/${id}`);\n");
+        sb.append("    await api.delete(`").append(apiPath).append("/${id}`);\n");
         sb.append("    return id;\n");
         sb.append("  }\n");
         sb.append(");\n\n");
@@ -598,7 +628,7 @@ public class FrontendGenerator extends AbstractGenerator {
         }
         sb.append("import {\n");
         sb.append("  Box, Button, Chip, IconButton, Menu, MenuItem, Paper, Stack, Table, TableBody,\n");
-        sb.append("  TableCell, TableContainer, TableHead, TableRow,\n");
+        sb.append("  TableCell, TableContainer, TableHead, TableRow, TableSortLabel,\n");
         sb.append("  Tooltip, Snackbar, Alert, Fade, Skeleton, TablePagination,\n");
         sb.append("} from '@mui/material';\n");
         sb.append("import { Edit, Delete, Visibility, MoreVert");
@@ -606,7 +636,7 @@ public class FrontendGenerator extends AbstractGenerator {
             sb.append(", FileDownload, FileUpload");
         }
         sb.append(" } from '@mui/icons-material';\n");
-        sb.append("import axios from 'axios';\n");
+        sb.append("import api from '../../api/client';\n");
         sb.append("import PageHeader from '../../components/shared/PageHeader';\n");
         sb.append("import ConfirmDialog from '../../components/shared/ConfirmDialog';\n");
         sb.append("import EmptyState from '../../components/shared/EmptyState';\n");
@@ -623,6 +653,8 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  const { items, loading, totalElements } = useAppSelector((s) => s.").append(camel).append(");\n");
         sb.append("  const [page, setPage] = useState(0);\n");
         sb.append("  const [rowsPerPage, setRowsPerPage] = useState(10);\n");
+        sb.append("  const [sortBy, setSortBy] = useState('").append(defaultFrontendSort(entity)).append("');\n");
+        sb.append("  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('").append(defaultFrontendSortDir(entity)).append("');\n");
         sb.append("  const [deleteId, setDeleteId] = useState<number | null>(null);\n");
         sb.append("  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });\n");
         if (!httpActions.isEmpty()) {
@@ -630,6 +662,12 @@ public class FrontendGenerator extends AbstractGenerator {
             sb.append("  const [actionMenuId, setActionMenuId] = useState<number | null>(null);\n");
         }
         sb.append("\n");
+
+        sb.append("  const handleSort = (field: string) => {\n");
+        sb.append("    if (sortBy === field) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');\n");
+        sb.append("    else { setSortBy(field); setSortDir('asc'); }\n");
+        sb.append("    setPage(0);\n");
+        sb.append("  };\n\n");
 
         sb.append("  const handleDelete = async () => {\n");
         sb.append("    if (deleteId == null) return;\n");
@@ -655,15 +693,15 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  useEffect(() => {\n");
         if (hasFilters) {
             sb.append("    if (filterActive) {\n");
-            sb.append("      axios.post('").append(apiPath).append("/search', filterActive, { params: { page, size: rowsPerPage } })\n");
+            sb.append("      api.post('").append(apiPath).append("/search', filterActive, { params: { page, size: rowsPerPage, sort: `${sortBy},${sortDir}` } })\n");
             sb.append("        .then(res => dispatch(searchFulfilled(res.data))).catch(() => {});\n");
             sb.append("    } else {\n");
-            sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
+            sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage, sort: `${sortBy},${sortDir}` }));\n");
             sb.append("    }\n");
-            sb.append("  }, [dispatch, filterActive, page, rowsPerPage, location.key]);\n\n");
+            sb.append("  }, [dispatch, filterActive, page, rowsPerPage, sortBy, sortDir, location.key]);\n\n");
         } else {
-            sb.append("    dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
-            sb.append("  }, [dispatch, page, rowsPerPage, location.key]);\n\n");
+            sb.append("    dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage, sort: `${sortBy},${sortDir}` }));\n");
+            sb.append("  }, [dispatch, page, rowsPerPage, sortBy, sortDir, location.key]);\n\n");
         }
 
         // Export handlers
@@ -678,9 +716,9 @@ public class FrontendGenerator extends AbstractGenerator {
                 sb.append("    const formData = new FormData();\n");
                 sb.append("    formData.append('file', file);\n");
                 sb.append("    try {\n");
-                sb.append("      const res = await axios.post('").append(apiPath).append("/import/").append(fmt).append("', formData, { headers: { 'Content-Type': 'multipart/form-data' } });\n");
+                sb.append("      const res = await api.post('").append(apiPath).append("/import/").append(fmt).append("', formData, { headers: { 'Content-Type': 'multipart/form-data' } });\n");
                 sb.append("      setSnackbar({ open: true, message: res.data.message ?? 'Importado com sucesso!', severity: 'success' });\n");
-                sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
+                sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage, sort: `${sortBy},${sortDir}` }));\n");
                 sb.append("    } catch {\n");
                 sb.append("      setSnackbar({ open: true, message: 'Erro ao importar arquivo.', severity: 'error' });\n");
                 sb.append("    }\n");
@@ -703,9 +741,9 @@ public class FrontendGenerator extends AbstractGenerator {
             sb.append("    if (actionMenuId == null) return;\n");
             sb.append("    try {\n");
             sb.append("      const url = `").append(apiPath).append("${actionPath.replace('{id}', String(actionMenuId))}`;\n");
-            sb.append("      await axios({ method, url });\n");
+            sb.append("      await api({ method, url });\n");
             sb.append("      setSnackbar({ open: true, message: 'Ação executada com sucesso!', severity: 'success' });\n");
-            sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage }));\n");
+            sb.append("      dispatch(fetch").append(pluralPascal).append("({ page, size: rowsPerPage, sort: `${sortBy},${sortDir}` }));\n");
             sb.append("    } catch {\n");
             sb.append("      setSnackbar({ open: true, message: 'Erro ao executar ação.', severity: 'error' });\n");
             sb.append("    }\n");
@@ -748,13 +786,14 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("          <Table sx={{ minWidth: 650 }}>\n");
         sb.append("            <TableHead>\n");
         sb.append("              <TableRow>\n");
-        sb.append("                <TableCell>ID</TableCell>\n");
+        appendHeaderCell(sb, entity, "id", "ID");
         for (FieldDefinition f : responseFields) {
-            sb.append("                <TableCell>").append(NamingUtils.toHumanLabel(f.getName())).append("</TableCell>\n");
+            appendHeaderCell(sb, entity, f.getName(), NamingUtils.toHumanLabel(f.getName()));
         }
         for (RelationDefinition r : entity.getRelations()) {
             if (r.isInResponse() && "ManyToOne".equals(r.getType())) {
-                sb.append("                <TableCell>").append(NamingUtils.toHumanLabel(r.getFieldName())).append("</TableCell>\n");
+                String preferredSort = firstSortableRelationPath(entity, r.getFieldName());
+                appendHeaderCell(sb, entity, preferredSort, NamingUtils.toHumanLabel(r.getFieldName()));
             }
         }
         sb.append("                <TableCell align=\"center\">Ações</TableCell>\n");
@@ -1274,6 +1313,45 @@ public class FrontendGenerator extends AbstractGenerator {
     // Helpers
     // ═══════════════════════════════════════════════════════════════════════
 
+    private void appendHeaderCell(StringBuilder sb, EntityDefinition entity, String field, String label) {
+        if (field != null && isFrontendSortable(entity, field)) {
+            sb.append("                <TableCell><TableSortLabel active={sortBy === '").append(field).append("'} direction={sortBy === '").append(field).append("' ? sortDir : 'asc'} onClick={() => handleSort('").append(field).append("')}>").append(label).append("</TableSortLabel></TableCell>\n");
+        } else {
+            sb.append("                <TableCell>").append(label).append("</TableCell>\n");
+        }
+    }
+
+    private boolean isFrontendSortable(EntityDefinition entity, String field) {
+        if (field == null || field.isBlank()) return false;
+        if (entity.getCrud() != null && entity.getCrud().getSortable() != null && !entity.getCrud().getSortable().isEmpty()) {
+            return entity.getCrud().getSortable().contains(field);
+        }
+        return "id".equals(field) || entity.getFields().stream().anyMatch(f -> f.getName().equals(field));
+    }
+
+    private String defaultFrontendSort(EntityDefinition entity) {
+        if (entity.getCrud() != null && entity.getCrud().getDefaultSort() != null && !entity.getCrud().getDefaultSort().isBlank()) {
+            return entity.getCrud().getDefaultSort();
+        }
+        return "id";
+    }
+
+    private String defaultFrontendSortDir(EntityDefinition entity) {
+        if (entity.getCrud() != null && "DESC".equalsIgnoreCase(entity.getCrud().getDefaultDirection())) {
+            return "desc";
+        }
+        return "asc";
+    }
+
+    private String firstSortableRelationPath(EntityDefinition entity, String relationField) {
+        if (entity.getCrud() != null && entity.getCrud().getSortable() != null) {
+            for (String field : entity.getCrud().getSortable()) {
+                if (field != null && field.startsWith(relationField + ".")) return field;
+            }
+        }
+        return relationField + ".id";
+    }
+
     private String tsType(FieldDefinition f) {
         return switch (f.getType().toLowerCase()) {
             case "integer", "int", "long", "double", "float", "bigdecimal" -> "number";
@@ -1297,7 +1375,8 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("  onToggleMenu: () => void;\n");
         sb.append("}\n\n");
         sb.append("export default function AppHeader({ darkMode, onToggleDark, onToggleMenu }: AppHeaderProps) {\n");
-        sb.append("  const isMobile = useMediaQuery('(max-width:900px)');\n\n");
+        sb.append("  const isMobile = useMediaQuery('(max-width:900px)');\n");
+        sb.append("\n");
         sb.append("  return (\n");
         sb.append("    <AppBar\n");
         sb.append("      position=\"fixed\"\n");
@@ -1362,6 +1441,12 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("    if (id) dispatch(fetch").append(name).append("ById(Number(id)));\n");
         sb.append("    return () => { dispatch(clearCurrent()); };\n");
         sb.append("  }, [id, dispatch]);\n\n");
+
+        sb.append("  const handleSort = (field: string) => {\n");
+        sb.append("    if (sortBy === field) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');\n");
+        sb.append("    else { setSortBy(field); setSortDir('asc'); }\n");
+        sb.append("    setPage(0);\n");
+        sb.append("  };\n\n");
 
         sb.append("  const handleDelete = async () => {\n");
         sb.append("    if (!id) return;\n");
@@ -1472,7 +1557,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("import { FilterList, Clear } from '@mui/icons-material';\n\n");
 
         sb.append("export interface ").append(name).append("Filter {\n");
-        for (FilterDefinition f : entity.getFilters()) {
+        for (FilterDefinition f : entity.getEffectiveFilters()) {
             String tsType = switch (f.getType().toLowerCase()) {
                 case "integer", "long", "double", "float", "bigdecimal" -> "number | ''";
                 default -> "string";
@@ -1482,7 +1567,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("}\n\n");
 
         sb.append("const emptyFilter: ").append(name).append("Filter = {\n");
-        for (FilterDefinition f : entity.getFilters()) {
+        for (FilterDefinition f : entity.getEffectiveFilters()) {
             sb.append("  ").append(f.getName()).append(": '',\n");
         }
         sb.append("};\n\n");
@@ -1522,7 +1607,7 @@ public class FrontendGenerator extends AbstractGenerator {
         sb.append("        <Box sx={{ px: 3, pb: 2 }}>\n");
         sb.append("          <Grid container spacing={2}>\n");
 
-        for (FilterDefinition f : entity.getFilters()) {
+        for (FilterDefinition f : entity.getEffectiveFilters()) {
             String label = f.getLabel() != null ? f.getLabel() : NamingUtils.toHumanLabel(f.getName());
             sb.append("            <Grid item xs={12} sm={6} md={3}>\n");
 

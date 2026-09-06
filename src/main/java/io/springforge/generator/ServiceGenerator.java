@@ -20,8 +20,8 @@ public class ServiceGenerator extends AbstractGenerator {
     public void generate(ForgeDefinition def, EntityDefinition entity, File outDir) throws MojoExecutionException {
         if (!entity.shouldGenerate("service")) return;
 
-        String svcPkg  = servicePkg(def);
-        String implPkg = serviceImplPkg(def);
+        String svcPkg  = servicePkg(def, entity);
+        String implPkg = serviceImplPkg(def, entity);
 
         writeFile(buildInterface(def, entity, svcPkg),
                   javaFile(outDir, svcPkg, entity.getName() + "Service"), svcPkg);
@@ -34,8 +34,8 @@ public class ServiceGenerator extends AbstractGenerator {
 
     private CodeWriter buildInterface(ForgeDefinition def, EntityDefinition entity, String pkg) {
         String name    = entity.getName();
-        String dtoPkg  = dtoPkg(def);
-        String excPkg  = exceptionPkg(def);
+        String dtoPkg  = dtoPkg(def, entity);
+        String excPkg  = exceptionPkg(def, entity);
         CodeWriter w   = new CodeWriter();
 
         w.imp("org.springframework.data.domain.Page")
@@ -82,6 +82,13 @@ public class ServiceGenerator extends AbstractGenerator {
          .line("void delete(Long id);")
          .blank();
 
+        if (entity.getCrud() != null && entity.getCrud().isBulkOperations()) {
+            w.imp("java.util.List");
+            w.javadoc("Remove vários registros de uma vez.")
+             .line("void deleteBulk(List<Long> ids);")
+             .blank();
+        }
+
         // Actions customizadas
         if (entity.hasActions()) {
             w.line("// ── Actions customizadas ─────────────────────────────────────────────────────────")
@@ -107,11 +114,11 @@ public class ServiceGenerator extends AbstractGenerator {
 
     private CodeWriter buildImpl(ForgeDefinition def, EntityDefinition entity, String implPkg) {
         String name    = entity.getName();
-        String dtoPkg  = dtoPkg(def);
-        String svcPkg  = servicePkg(def);
-        String repoPkg = repoPkg(def);
-        String entPkg  = entityPkg(def);
-        String excPkg  = exceptionPkg(def);
+        String dtoPkg  = dtoPkg(def, entity);
+        String svcPkg  = servicePkg(def, entity);
+        String repoPkg = repoPkg(def, entity);
+        String entPkg  = entityPkg(def, entity);
+        String excPkg  = exceptionPkg(def, entity);
         boolean useMapper = def.getProject().isGenerateMappers();
 
         CodeWriter w = new CodeWriter();
@@ -127,15 +134,15 @@ public class ServiceGenerator extends AbstractGenerator {
          .imp(dtoPkg  + "." + name + "ResponseDTO")
          .imp(excPkg  + "." + name + "NotFoundException");
 
-        if (useMapper) w.imp(mapperPkg(def) + "." + name + "Mapper");
+        if (useMapper) w.imp(mapperPkg(def, entity) + "." + name + "Mapper");
         if (entity.isSoftDelete()) w.imp("java.time.LocalDateTime");
 
         // Imports for ManyToOne relation repositories
         List<RelationDefinition> manyToOneRelations = entity.getRelations().stream()
                 .filter(r -> "ManyToOne".equals(r.getType())).toList();
         for (RelationDefinition r : manyToOneRelations) {
-            w.imp(repoPkg + "." + r.getTargetEntity() + "Repository");
-            w.imp(entPkg + "." + r.getTargetEntity());
+            w.imp(repoPkg(def, r.getTargetEntity()) + "." + r.getTargetEntity() + "Repository");
+            w.imp(entityPkg(def, r.getTargetEntity()) + "." + r.getTargetEntity());
         }
 
         // Imports dos Enums (necessário para conversão manual)
@@ -185,26 +192,32 @@ public class ServiceGenerator extends AbstractGenerator {
         w.unindent().line("}").blank();
 
         // findAll
+        if (entity.hasFilters() || entity.hasAdvancedCrud()) {
+            w.imp(specificationPkg(def, entity) + "." + name + "Specification");
+        }
         w.line("@Override")
          .line("public Page<" + name + "ResponseDTO> findAll(Pageable pageable) {")
          .indent();
-        String findAll = entity.isSoftDelete() ? "repository.findAllActive(pageable)" : "repository.findAll(pageable)";
+        if (entity.hasFilters() || entity.hasAdvancedCrud()) {
+            w.line("Pageable safePageable = " + name + "Specification.sanitizePageable(pageable);");
+        }
+        String pageableArg = (entity.hasFilters() || entity.hasAdvancedCrud()) ? "safePageable" : "pageable";
+        String findAll = entity.isSoftDelete() ? "repository.findAllActive(" + pageableArg + ")" : "repository.findAll(" + pageableArg + ")";
         String mapCall = useMapper ? ".map(mapper::toResponseDTO)" : ".map(this::toResponseDTO)";
         w.line("return " + findAll + mapCall + ";");
         w.unindent().line("}").blank();
 
         // search (com filtros)
         if (entity.hasFilters()) {
-            String specPkg = def.getProject().getBasePackage() + ".specification";
             w.imp(dtoPkg + "." + name + "FilterDTO")
-             .imp(specPkg + "." + name + "Specification")
              .imp("org.springframework.data.jpa.domain.Specification");
 
             w.line("@Override")
              .line("public Page<" + name + "ResponseDTO> search(" + name + "FilterDTO filter, Pageable pageable) {")
              .indent()
+             .line("Pageable safePageable = " + name + "Specification.sanitizePageable(pageable);")
              .line("Specification<" + name + "> spec = " + name + "Specification.fromFilter(filter);")
-             .line("return repository.findAll(spec, pageable)" + mapCall + ";")
+             .line("return repository.findAll(spec, safePageable)" + mapCall + ";")
              .unindent().line("}").blank();
         }
 
@@ -222,6 +235,7 @@ public class ServiceGenerator extends AbstractGenerator {
          .line("public " + name + "ResponseDTO create(" + name + "RequestDTO dto) {")
          .indent()
          .line(name + " entity = " + (useMapper ? "mapper.toEntity(dto);" : "toEntity(dto);"))
+         .line(useMapper && !manyToOneRelations.isEmpty() ? "applyRelations(dto, entity);" : "// relações aplicadas durante o mapeamento manual")
          .line("entity = repository.save(entity);")
          .line("return " + (useMapper ? "mapper.toResponseDTO(entity);" : "toResponseDTO(entity);"))
          .unindent().line("}").blank();
@@ -234,6 +248,7 @@ public class ServiceGenerator extends AbstractGenerator {
          .line(name + " entity = findEntityById(id);");
         if (useMapper) {
             w.line("mapper.updateEntityFromDTO(dto, entity);");
+            if (!manyToOneRelations.isEmpty()) w.line("applyRelations(dto, entity);");
         } else {
             w.line("updateEntityFromDTO(dto, entity);");
         }
@@ -254,6 +269,23 @@ public class ServiceGenerator extends AbstractGenerator {
             w.line("repository.delete(entity);");
         }
         w.unindent().line("}").blank();
+
+        if (entity.getCrud() != null && entity.getCrud().isBulkOperations()) {
+            w.imp("java.util.List");
+            w.line("@Override")
+             .line("@Transactional")
+             .line("public void deleteBulk(List<Long> ids) {")
+             .indent()
+             .line("if (ids == null || ids.isEmpty()) return;");
+            if (entity.isSoftDelete()) {
+                w.line("List<" + name + "> entities = repository.findAllById(ids);")
+                 .line("entities.forEach(item -> item.setDeletedAt(LocalDateTime.now()));")
+                 .line("repository.saveAll(entities);");
+            } else {
+                w.line("repository.deleteAllById(ids);");
+            }
+            w.unindent().line("}").blank();
+        }
 
         // ── Actions ──────────────────────────────────────────────────────────────
         if (entity.hasActions()) {
@@ -307,6 +339,11 @@ public class ServiceGenerator extends AbstractGenerator {
          .unindent()
          .unindent().line("}").blank();
 
+        // Relações ManyToOne: MapStruct ignora o objeto e o service resolve por ID.
+        if (useMapper && !manyToOneRelations.isEmpty()) {
+            writeApplyRelations(w, name, manyToOneRelations);
+        }
+
         // Conversão manual (só se não usar MapStruct)
         if (!useMapper) {
             writeManualConversions(w, entity, name, manyToOneRelations);
@@ -314,6 +351,21 @@ public class ServiceGenerator extends AbstractGenerator {
 
         w.unindent().line("}");
         return w;
+    }
+
+    private void writeApplyRelations(CodeWriter w, String name, List<RelationDefinition> manyToOneRelations) {
+        w.line("private void applyRelations(" + name + "RequestDTO dto, " + name + " entity) {")
+         .indent();
+        for (RelationDefinition r : manyToOneRelations) {
+            String capField = NamingUtils.toPascalCase(r.getFieldName());
+            String camelTarget = NamingUtils.toCamelCase(r.getTargetEntity());
+            w.line("if (dto.get" + capField + "Id() != null) {")
+             .indent()
+             .line("entity.set" + capField + "(" + camelTarget + "Repository.findById(dto.get" + capField + "Id())")
+             .line("    .orElseThrow(() -> new RuntimeException(\"" + r.getTargetEntity() + " não encontrado: \" + dto.get" + capField + "Id())));")
+             .unindent().line("}");
+        }
+        w.unindent().line("}").blank();
     }
 
     private void writeManualConversions(CodeWriter w, EntityDefinition entity, String name, List<RelationDefinition> manyToOneRelations) {

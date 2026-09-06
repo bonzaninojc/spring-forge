@@ -1,14 +1,14 @@
 package io.springforge.generator;
 
+import java.io.File;
+
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.logging.Log;
+
 import io.springforge.model.ActionDefinition;
 import io.springforge.model.EntityDefinition;
 import io.springforge.model.ForgeDefinition;
 import io.springforge.util.NamingUtils;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.logging.Log;
-
-import java.io.File;
-import java.util.List;
 
 public class ControllerGenerator extends AbstractGenerator {
 
@@ -18,10 +18,10 @@ public class ControllerGenerator extends AbstractGenerator {
     public void generate(ForgeDefinition def, EntityDefinition entity, File outDir) throws MojoExecutionException {
         if (!entity.shouldGenerate("controller")) return;
 
-        String pkg    = controllerPkg(def);
+        String pkg    = controllerPkg(def, entity);
         String name   = entity.getName();
-        String dtoPkg = dtoPkg(def);
-        String svcPkg = servicePkg(def);
+        String dtoPkg = dtoPkg(def, entity);
+        String svcPkg = servicePkg(def, entity);
 
         String apiPath = entity.getApiPath() != null ? entity.getApiPath()
             : "/api/v1/" + NamingUtils.toSnakeCase(NamingUtils.toPlural(name)).replace("_", "-");
@@ -39,10 +39,8 @@ public class ControllerGenerator extends AbstractGenerator {
          .imp(dtoPkg + "." + name + "ResponseDTO")
          .imp(svcPkg + "." + name + "Service");
 
-        boolean useSecurity = def.getProject().isGenerateSecurity();
-        List<String> entityRoles = entity.getRoles();
-        if (useSecurity && !entityRoles.isEmpty()) {
-            w.imp("org.springframework.security.access.prepost.PreAuthorize");
+        if (entity.getCrud() != null && entity.getCrud().isBulkOperations()) {
+            w.imp("java.util.List");
         }
 
         // Imports DTOs de actions que têm endpoint
@@ -50,20 +48,14 @@ public class ControllerGenerator extends AbstractGenerator {
             if (a.getHttpMethod() == null) continue;
             if (a.hasRequest())  w.imp(dtoPkg + "." + a.getRequestDtoName());
             if (a.hasResponse()) w.imp(dtoPkg + "." + a.getResponseDtoName());
-            if (useSecurity && !a.getRoles().isEmpty()) {
-                w.imp("org.springframework.security.access.prepost.PreAuthorize");
-            }
         }
+
 
         w.javadoc("Controller REST para " + name + ".\nBase URL: " + apiPath + "\nGerado pelo Spring Forge.");
         w.line("@RestController")
-         .line("@RequestMapping(\"" + apiPath + "\")");
+         .line("@RequestMapping(\"" + javaString(apiPath) + "\")");
 
-        // Anotação @PreAuthorize no nível de classe (se roles na entidade)
-        if (useSecurity && !entityRoles.isEmpty()) {
-            w.line(SecurityGenerator.preAuthorizeAnnotation(entityRoles));
-        }
-        w.line("public class " + name + "Controller {")
+        w.line("public class " + name + "Controller" + (def.getProject().isGenerateOpenApi() ? " implements " + name + "ControllerDocs" : "") + " {")
          .blank();
         w.indent();
 
@@ -75,11 +67,15 @@ public class ControllerGenerator extends AbstractGenerator {
          .line("this.service = service;")
          .unindent().line("}").blank();
 
+        int defaultPageSize = entity.getCrud() != null ? Math.max(1, entity.getCrud().getDefaultPageSize()) : 20;
+        String defaultSort = entity.getCrud() != null && entity.getCrud().getDefaultSort() != null && !entity.getCrud().getDefaultSort().isBlank()
+            ? entity.getCrud().getDefaultSort() : "id";
+
         // GET /
         w.line("/** GET " + apiPath + " — lista com paginação */")
          .line("@GetMapping")
          .line("public ResponseEntity<Page<" + name + "ResponseDTO>> findAll(")
-         .line("        @PageableDefault(size = 20, sort = \"id\") Pageable pageable) {")
+         .line("        @PageableDefault(size = " + defaultPageSize + ", sort = \"" + javaString(defaultSort) + "\") Pageable pageable) {")
          .indent()
          .line("return ResponseEntity.ok(service.findAll(pageable));")
          .unindent().line("}").blank();
@@ -91,7 +87,7 @@ public class ControllerGenerator extends AbstractGenerator {
              .line("@PostMapping(\"/search\")")
              .line("public ResponseEntity<Page<" + name + "ResponseDTO>> search(")
              .line("        @RequestBody " + name + "FilterDTO filter,")
-             .line("        @PageableDefault(size = 20, sort = \"id\") Pageable pageable) {")
+             .line("        @PageableDefault(size = " + defaultPageSize + ", sort = \"" + javaString(defaultSort) + "\") Pageable pageable) {")
              .indent()
              .line("return ResponseEntity.ok(service.search(filter, pageable));")
              .unindent().line("}").blank();
@@ -133,6 +129,16 @@ public class ControllerGenerator extends AbstractGenerator {
          .line("return ResponseEntity.noContent().build();")
          .unindent().line("}").blank();
 
+        if (entity.getCrud() != null && entity.getCrud().isBulkOperations()) {
+            w.line("/** DELETE " + apiPath + "/bulk — remove vários registros */")
+             .line("@DeleteMapping(\"/bulk\")")
+             .line("public ResponseEntity<Void> deleteBulk(@RequestBody List<Long> ids) {")
+             .indent()
+             .line("service.deleteBulk(ids);")
+             .line("return ResponseEntity.noContent().build();")
+             .unindent().line("}").blank();
+        }
+
         // ── Actions com endpoint HTTP ─────────────────────────────────────────────
         boolean hasHttpActions = entity.getActions().stream()
             .anyMatch(a -> a.getHttpMethod() != null);
@@ -150,11 +156,7 @@ public class ControllerGenerator extends AbstractGenerator {
                 String desc      = a.getDescription() != null ? a.getDescription() : "Action " + a.getName();
 
                 w.line("/** " + method + " " + apiPath + path + " — " + desc + " */");
-                // @PreAuthorize no nível de action (sobrescreve o da entidade)
-                if (useSecurity && !a.getRoles().isEmpty()) {
-                    w.line(SecurityGenerator.preAuthorizeAnnotation(a.getRoles()));
-                }
-                w.line("@" + toMappingAnnotation(method) + "(\"" + path + "\")")
+                w.line("@" + toMappingAnnotation(method) + "(\"" + javaString(path) + "\")")
                  .line("public " + retType + " " + a.getName() + "(");
 
                 // Parâmetros do endpoint

@@ -18,7 +18,7 @@ public class EntityGenerator extends AbstractGenerator {
     public void generate(ForgeDefinition def, EntityDefinition entity, File outDir) throws MojoExecutionException {
         if (!entity.shouldGenerate("entity")) return;
 
-        String pkg = entityPkg(def);
+        String pkg = entityPkg(def, entity);
         writeFile(buildEntity(def, entity, pkg), javaFile(outDir, pkg, entity.getName()), pkg);
 
         // Enums embutidos
@@ -54,6 +54,14 @@ public class EntityGenerator extends AbstractGenerator {
             .anyMatch(r -> "OneToMany".equals(r.getType()) || "ManyToMany".equals(r.getType()));
         if (hasList) { w.imp("java.util.List"); w.imp("java.util.Set"); }
 
+        if (def.getProject().isModular()) {
+            entity.getRelations().stream()
+                .map(RelationDefinition::getTargetEntity)
+                .filter(target -> target != null && !target.equals(entity.getName()))
+                .distinct()
+                .forEach(target -> w.imp(entityPkg(def, target) + "." + target));
+        }
+
         if (entity.isAuditable()) {
             w.imp("jakarta.persistence.PrePersist")
              .imp("jakarta.persistence.PreUpdate");
@@ -62,7 +70,7 @@ public class EntityGenerator extends AbstractGenerator {
         // Anotações da classe
         String table = entity.getTableName() != null ? entity.getTableName() : NamingUtils.toSnakeCase(entity.getName());
         w.line("@Entity")
-         .line("@Table(name = \"" + table + "\")");
+         .line("@Table(name = \"" + javaString(table) + "\")");
 
         if (entity.isAuditable()) w.line("");
 
@@ -174,11 +182,15 @@ public class EntityGenerator extends AbstractGenerator {
         // @Column
         StringBuilder col = new StringBuilder("@Column(name = \"");
         String colName = f.getColumnName() != null ? f.getColumnName() : NamingUtils.toSnakeCase(f.getName());
-        col.append(colName).append("\"");
+        col.append(javaString(colName)).append("\"");
         if (f.isUnique()) col.append(", unique = true");
         if (f.isRequired()) col.append(", nullable = false");
         if (f.getMaxLength() != null && "String".equalsIgnoreCase(f.getType())) {
             col.append(", length = ").append(f.getMaxLength());
+        }
+        if ("BigDecimal".equalsIgnoreCase(f.getType())) {
+            if (f.getPrecision() != null) col.append(", precision = ").append(f.getPrecision());
+            if (f.getScale() != null) col.append(", scale = ").append(f.getScale());
         }
         col.append(")");
         w.line(col.toString());
@@ -195,22 +207,27 @@ public class EntityGenerator extends AbstractGenerator {
 
     private void writeRelation(CodeWriter w, RelationDefinition r) {
         String cascadeStr = buildCascade(r.getCascade());
+        String joinColumn = r.getJoinColumn() != null && !r.getJoinColumn().isBlank()
+            ? r.getJoinColumn()
+            : NamingUtils.toSnakeCase(r.getFieldName()) + "_id";
+        String nullable = r.isRequired() ? ", nullable = false" : "";
         switch (r.getType()) {
             case "ManyToOne" -> {
                 w.line("@ManyToOne(fetch = FetchType." + r.getFetch() + ", cascade = {" + cascadeStr + "})")
-                 .line("@JoinColumn(name = \"" + NamingUtils.toSnakeCase(r.getFieldName()) + "_id\")")
+                 .line("@JoinColumn(name = \"" + javaString(joinColumn) + "\"" + nullable + ")")
                  .line("private " + r.getTargetEntity() + " " + r.getFieldName() + ";")
                  .blank();
             }
             case "OneToMany" -> {
                 String mb = r.getMappedBy() != null ? "mappedBy = \"" + r.getMappedBy() + "\", " : "";
-                w.line("@OneToMany(" + mb + "fetch = FetchType." + r.getFetch() + ", cascade = {" + cascadeStr + "})")
+                String orphan = r.isOrphanRemoval() ? ", orphanRemoval = true" : "";
+                w.line("@OneToMany(" + mb + "fetch = FetchType." + r.getFetch() + ", cascade = {" + cascadeStr + "}" + orphan + ")")
                  .line("private List<" + r.getTargetEntity() + "> " + r.getFieldName() + ";")
                  .blank();
             }
             case "OneToOne" -> {
                 w.line("@OneToOne(fetch = FetchType." + r.getFetch() + ", cascade = {" + cascadeStr + "})")
-                 .line("@JoinColumn(name = \"" + NamingUtils.toSnakeCase(r.getFieldName()) + "_id\", unique = true)")
+                 .line("@JoinColumn(name = \"" + javaString(joinColumn) + "\", unique = true" + nullable + ")")
                  .line("private " + r.getTargetEntity() + " " + r.getFieldName() + ";")
                  .blank();
             }

@@ -53,15 +53,23 @@ public class CacheGenerator extends AbstractGenerator {
     }
 
     /**
-     * Gera o ServiceImpl com cache (CachedXxxServiceImpl) para uma entidade.
+     * Gera o service com cache para uma entidade.
+     * No modo Hexagonal, gera CachedUseCaseImpl decorando o UseCaseImpl.
+     * No modo Layered, gera CachedServiceImpl decorando o ServiceImpl (comportamento original).
      */
     public void generateCachedService(ForgeDefinition def, EntityDefinition entity, File outDir) throws MojoExecutionException {
         if (!def.getProject().isGenerateCache()) return;
         if (!entity.hasCache()) return;
 
-        String pkg = serviceImplPkg(def);
-        CodeWriter w = buildCachedServiceImpl(def, entity, pkg);
-        writeFile(w, javaFile(outDir, pkg, entity.getName() + "CachedServiceImpl"), pkg);
+        if (def.getProject().isHexagonal()) {
+            String pkg = hexAppServicePkg(def);
+            CodeWriter w = buildCachedUseCaseImpl(def, entity, pkg);
+            writeFile(w, javaFile(outDir, pkg, entity.getName() + "CachedUseCaseImpl"), pkg);
+        } else {
+            String pkg = serviceImplPkg(def, entity);
+            CodeWriter w = buildCachedServiceImpl(def, entity, pkg);
+            writeFile(w, javaFile(outDir, pkg, entity.getName() + "CachedServiceImpl"), pkg);
+        }
     }
 
     private CodeWriter buildCacheConfig(ForgeDefinition def, List<EntityDefinition> cachedEntities, String pkg, String provider) {
@@ -161,11 +169,11 @@ public class CacheGenerator extends AbstractGenerator {
 
     private CodeWriter buildCachedServiceImpl(ForgeDefinition def, EntityDefinition entity, String pkg) {
         String name = entity.getName();
-        String svcPkg = servicePkg(def);
-        String dtoPkg = dtoPkg(def);
-        String entityPkg = entityPkg(def);
+        String svcPkg = servicePkg(def, entity);
+        String dtoPkg = dtoPkg(def, entity);
+        String entityPkg = entityPkg(def, entity);
         String configPkg = def.getProject().getBasePackage() + ".config";
-        String excPkg = exceptionPkg(def);
+        String excPkg = exceptionPkg(def, entity);
         String constant = NamingUtils.toSnakeCase(name).toUpperCase() + "_CACHE";
 
         CodeWriter w = new CodeWriter();
@@ -278,4 +286,131 @@ public class CacheGenerator extends AbstractGenerator {
         w.unindent().line("}");
         return w;
     }
+    // ── Hexagonal: Cached Use-Case Impl ──────────────────────────────────────────
+
+    private CodeWriter buildCachedUseCaseImpl(ForgeDefinition def, EntityDefinition entity, String pkg) {
+        String name       = entity.getName();
+        String inPortPkg  = hexPortInPkg(def);
+        String dtoPkg     = dtoPkg(def, entity);
+        String configPkg  = def.getProject().getBasePackage() + ".config";
+        String constant   = io.springforge.util.NamingUtils.toSnakeCase(name).toUpperCase() + "_CACHE";
+
+        CodeWriter w = new CodeWriter();
+
+        w.imp("org.springframework.cache.annotation.CacheEvict")
+         .imp("org.springframework.cache.annotation.Cacheable")
+         .imp("org.springframework.cache.annotation.CachePut")
+         .imp("org.springframework.context.annotation.Primary")
+         .imp("org.springframework.data.domain.Page")
+         .imp("org.springframework.data.domain.Pageable")
+         .imp("org.springframework.stereotype.Service")
+         .imp(inPortPkg  + "." + name + "UseCase")
+         .imp(dtoPkg     + "." + name + "RequestDTO")
+         .imp(dtoPkg     + "." + name + "ResponseDTO")
+         .imp(configPkg  + ".CacheConfig");
+
+        for (io.springforge.model.ActionDefinition a : entity.getActions()) {
+            if (a.hasRequest())  w.imp(dtoPkg + "." + a.getRequestDtoName());
+            if (a.hasResponse()) w.imp(dtoPkg + "." + a.getResponseDtoName());
+        }
+
+        if (entity.hasFilters()) {
+            w.imp(dtoPkg + "." + name + "FilterDTO");
+        }
+
+        w.javadoc("Use-Case com cache para " + name + ".\nGerado pelo Spring Forge — Arquitetura Hexagonal.\n\n"
+                + "Decorador @Primary que delega para " + name + "UseCaseImpl e adiciona cache nos métodos CRUDL.");
+        w.line("@Service")
+         .line("@Primary")
+         .line("public class " + name + "CachedUseCaseImpl implements " + name + "UseCase {").blank();
+        w.indent();
+
+        w.line("private final " + name + "UseCaseImpl delegate;").blank();
+        w.line("public " + name + "CachedUseCaseImpl(" + name + "UseCaseImpl delegate) {")
+         .indent()
+         .line("this.delegate = delegate;")
+         .unindent().line("}").blank();
+
+        // findAll — sem cache
+        w.line("@Override")
+         .line("public Page<" + name + "ResponseDTO> findAll(Pageable pageable) {")
+         .indent()
+         .line("return delegate.findAll(pageable);")
+         .unindent().line("}").blank();
+
+        // search — sem cache
+        if (entity.hasFilters()) {
+            w.line("@Override")
+             .line("public Page<" + name + "ResponseDTO> search(" + name + "FilterDTO filter, Pageable pageable) {")
+             .indent()
+             .line("return delegate.search(filter, pageable);")
+             .unindent().line("}").blank();
+        }
+
+        // findById — @Cacheable
+        w.line("@Override")
+         .line("@Cacheable(value = CacheConfig." + constant + ", key = \"#id\")")
+         .line("public " + name + "ResponseDTO findById(Long id) {")
+         .indent()
+         .line("return delegate.findById(id);")
+         .unindent().line("}").blank();
+
+        // create — @CacheEvict
+        w.line("@Override")
+         .line("@CacheEvict(value = CacheConfig." + constant + ", allEntries = true)")
+         .line("public " + name + "ResponseDTO create(" + name + "RequestDTO dto) {")
+         .indent()
+         .line("return delegate.create(dto);")
+         .unindent().line("}").blank();
+
+        // update — @CachePut
+        w.line("@Override")
+         .line("@CachePut(value = CacheConfig." + constant + ", key = \"#id\")")
+         .line("public " + name + "ResponseDTO update(Long id, " + name + "RequestDTO dto) {")
+         .indent()
+         .line("return delegate.update(id, dto);")
+         .unindent().line("}").blank();
+
+        // delete — @CacheEvict
+        w.line("@Override")
+         .line("@CacheEvict(value = CacheConfig." + constant + ", allEntries = true)")
+         .line("public void delete(Long id) {")
+         .indent()
+         .line("delegate.delete(id);")
+         .unindent().line("}").blank();
+
+        // Delega actions customizadas sem cache
+        if (entity.hasActions()) {
+            w.line("// ── Actions customizadas — delegadas sem cache ────────────────────────────────────")
+             .blank();
+            for (io.springforge.model.ActionDefinition a : entity.getActions()) {
+                String ret   = a.hasResponse() ? a.getResponseDtoName() : "void";
+                StringBuilder params = new StringBuilder();
+                if (a.isRequiresId()) params.append("Long id");
+                if (a.hasRequest()) {
+                    if (params.length() > 0) params.append(", ");
+                    params.append(a.getRequestDtoName()).append(" dto");
+                }
+                StringBuilder args = new StringBuilder();
+                if (a.isRequiresId()) args.append("id");
+                if (a.hasRequest()) {
+                    if (args.length() > 0) args.append(", ");
+                    args.append("dto");
+                }
+                w.line("@Override")
+                 .line("public " + ret + " " + a.getName() + "(" + params + ") {")
+                 .indent();
+                if (a.hasResponse()) {
+                    w.line("return delegate." + a.getName() + "(" + args + ");");
+                } else {
+                    w.line("delegate." + a.getName() + "(" + args + ");");
+                }
+                w.unindent().line("}").blank();
+            }
+        }
+
+        w.unindent().line("}");
+        return w;
+    }
+
 }

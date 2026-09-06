@@ -12,8 +12,45 @@
     "generateSpringEvents": true,
     "generateScheduled": true,
     "generateTests": true,
-    "generateSecurity": true,
-    "generateCache": true
+    "generateCache": true,
+    "templates": {
+      "enabled": false,
+      "templateDir": ".spring-forge/templates",
+      "suffix": ".tpl",
+      "overwrite": true,
+      "visualTemplates": [
+        {
+          "name": "README por entidade",
+          "scope": "entity",
+          "enabled": true,
+          "path": "docs/entities/{{entityKebab}}.md",
+          "content": "# {{EntityName}}\n\nEndpoint: `/api/v1/{{entityPluralKebab}}`\n"
+        }
+      ]
+    },
+    "frontend": {
+      "enabled": true,
+      "framework": "react",
+      "ui": "mui",
+      "state": "redux-toolkit",
+      "forms": "react-hook-form",
+      "validation": "zod",
+      "apiClient": true,
+      "authPages": true,
+      "protectedRoutes": true,
+      "appShell": true,
+      "filterPanel": true,
+      "tableSorting": true,
+      "confirmDialogs": true,
+      "notifications": true,
+      "darkMode": true
+    },
+    "pom": {
+      "autoUpdate": true,
+      "createBackup": true,
+      "addComments": true,
+      "managePlugins": true
+    }
   },
   "entities": [
     {
@@ -22,8 +59,9 @@
       "auditable": true,
       "softDelete": false,
       "apiPath": "/api/v1/categories",
-      "openApiTags": ["Categories"],
-      "roles": ["ADMIN", "USER"],
+      "openApiTags": [
+        "Categories"
+      ],
       "cache": {
         "enabled": true,
         "ttlSeconds": 900,
@@ -32,17 +70,49 @@
       },
       "exportImport": {
         "enabled": true,
-        "formats": ["csv"],
-        "exportFields": ["name", "description", "active"]
+        "formats": [
+          "csv"
+        ],
+        "exportFields": [
+          "name",
+          "description",
+          "active"
+        ]
       },
       "fields": [
-        { "name": "name",        "type": "String",  "required": true,  "unique": true, "maxLength": 100 },
-        { "name": "description", "type": "String",  "required": false, "maxLength": 500 },
-        { "name": "active",      "type": "Boolean", "required": false, "defaultValue": "true" }
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "unique": true,
+          "maxLength": 100
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false,
+          "maxLength": 500
+        },
+        {
+          "name": "active",
+          "type": "Boolean",
+          "required": false,
+          "defaultValue": "true"
+        }
       ],
       "filters": [
-        { "name": "name", "type": "String", "label": "Nome", "operator": "STARTS_WITH" },
-        { "name": "active", "type": "Boolean", "label": "Ativo", "operator": "EQUALS" }
+        {
+          "name": "name",
+          "type": "String",
+          "label": "Nome",
+          "operator": "STARTS_WITH"
+        },
+        {
+          "name": "active",
+          "type": "Boolean",
+          "label": "Ativo",
+          "operator": "EQUALS"
+        }
       ],
       "relations": [],
       "actions": []
@@ -53,8 +123,10 @@
       "auditable": true,
       "softDelete": true,
       "apiPath": "/api/v1/products",
-      "openApiTags": ["Products", "Inventory"],
-      "roles": ["ADMIN", "MANAGER"],
+      "openApiTags": [
+        "Products",
+        "Inventory"
+      ],
       "cache": {
         "enabled": true,
         "ttlSeconds": 600,
@@ -63,28 +135,127 @@
       },
       "exportImport": {
         "enabled": true,
-        "formats": ["csv", "excel"],
-        "exportFields": ["name", "sku", "price", "stock", "status"],
-        "importFields": ["name", "sku", "price", "stock", "status"]
+        "formats": [
+          "csv",
+          "excel"
+        ],
+        "exportFields": [
+          "name",
+          "sku",
+          "price",
+          "stock",
+          "status"
+        ],
+        "importFields": [
+          "name",
+          "sku",
+          "price",
+          "stock",
+          "status"
+        ]
       },
       "fields": [
-        { "name": "name",        "type": "String",     "required": true,  "maxLength": 200, "minLength": 3 },
-        { "name": "description", "type": "String",     "required": false, "maxLength": 2000 },
-        { "name": "price",       "type": "BigDecimal", "required": true,  "validations": ["@jakarta.validation.constraints.DecimalMin(value = \"0.01\")"] },
-        { "name": "stock",       "type": "Integer",    "required": true,  "validations": ["@jakarta.validation.constraints.Min(0)"] },
-        { "name": "sku",         "type": "String",     "required": true,  "unique": true, "maxLength": 50 },
-        { "name": "status",      "type": "Enum",       "enumValues": ["ACTIVE", "INACTIVE", "OUT_OF_STOCK"], "required": true }
+        {
+          "name": "name",
+          "type": "String",
+          "required": true,
+          "maxLength": 200,
+          "minLength": 3
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false,
+          "maxLength": 2000
+        },
+        {
+          "name": "price",
+          "type": "BigDecimal",
+          "required": true,
+          "validations": [
+            "@jakarta.validation.constraints.DecimalMin(value = \"0.01\")"
+          ]
+        },
+        {
+          "name": "stock",
+          "type": "Integer",
+          "required": true,
+          "validations": [
+            "@jakarta.validation.constraints.Min(0)"
+          ]
+        },
+        {
+          "name": "sku",
+          "type": "String",
+          "required": true,
+          "unique": true,
+          "maxLength": 50
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "enumValues": [
+            "ACTIVE",
+            "INACTIVE",
+            "OUT_OF_STOCK"
+          ],
+          "required": true
+        }
       ],
       "filters": [
-        { "name": "name", "type": "String", "label": "Nome do produto", "operator": "CONTAINS" },
-        { "name": "sku", "type": "String", "label": "SKU", "operator": "STARTS_WITH" },
-        { "name": "status", "type": "Enum", "enumValues": ["ACTIVE", "INACTIVE", "OUT_OF_STOCK"], "label": "Status", "operator": "EQUALS" },
-        { "name": "priceMin", "type": "BigDecimal", "label": "Preço mínimo", "operator": "GREATER_THAN_OR_EQUAL", "targetField": "price" },
-        { "name": "priceMax", "type": "BigDecimal", "label": "Preço máximo", "operator": "LESS_THAN_OR_EQUAL", "targetField": "price" },
-        { "name": "stockMin", "type": "Integer", "label": "Estoque mínimo", "operator": "GREATER_THAN_OR_EQUAL", "targetField": "stock" }
+        {
+          "name": "name",
+          "type": "String",
+          "label": "Nome do produto",
+          "operator": "CONTAINS"
+        },
+        {
+          "name": "sku",
+          "type": "String",
+          "label": "SKU",
+          "operator": "STARTS_WITH"
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "enumValues": [
+            "ACTIVE",
+            "INACTIVE",
+            "OUT_OF_STOCK"
+          ],
+          "label": "Status",
+          "operator": "EQUALS"
+        },
+        {
+          "name": "priceMin",
+          "type": "BigDecimal",
+          "label": "Preço mínimo",
+          "operator": "GREATER_THAN_OR_EQUAL",
+          "targetField": "price"
+        },
+        {
+          "name": "priceMax",
+          "type": "BigDecimal",
+          "label": "Preço máximo",
+          "operator": "LESS_THAN_OR_EQUAL",
+          "targetField": "price"
+        },
+        {
+          "name": "stockMin",
+          "type": "Integer",
+          "label": "Estoque mínimo",
+          "operator": "GREATER_THAN_OR_EQUAL",
+          "targetField": "stock"
+        }
       ],
       "relations": [
-        { "type": "ManyToOne", "targetEntity": "Category", "fieldName": "category", "fetch": "LAZY", "cascade": "MERGE,PERSIST" }
+        {
+          "type": "ManyToOne",
+          "targetEntity": "Category",
+          "fieldName": "category",
+          "fetch": "LAZY",
+          "cascade": "MERGE,PERSIST"
+        }
       ],
       "queues": [
         {
@@ -102,9 +273,11 @@
           "httpMethod": "POST",
           "apiPath": "/{id}/activate",
           "requiresId": true,
-          "roles": ["ADMIN"],
           "openApiResponses": [
-            { "code": 422, "description": "Estoque abaixo do mínimo exigido" }
+            {
+              "code": 422,
+              "description": "Estoque abaixo do mínimo exigido"
+            }
           ],
           "event": {
             "name": "ProductActivatedEvent",
@@ -113,13 +286,31 @@
             "description": "Publicado quando um produto é ativado com sucesso"
           },
           "request": [
-            { "name": "reason",       "type": "String",  "required": true,  "maxLength": 255 },
-            { "name": "minimumStock", "type": "Integer", "required": false }
+            {
+              "name": "reason",
+              "type": "String",
+              "required": true,
+              "maxLength": 255
+            },
+            {
+              "name": "minimumStock",
+              "type": "Integer",
+              "required": false
+            }
           ],
           "response": [
-            { "name": "activated", "type": "Boolean" },
-            { "name": "message",   "type": "String"  },
-            { "name": "newStatus", "type": "String"  }
+            {
+              "name": "activated",
+              "type": "Boolean"
+            },
+            {
+              "name": "message",
+              "type": "String"
+            },
+            {
+              "name": "newStatus",
+              "type": "String"
+            }
           ]
         },
         {
@@ -128,7 +319,6 @@
           "httpMethod": "PATCH",
           "apiPath": "/{id}/stock",
           "requiresId": true,
-          "roles": ["ADMIN", "MANAGER"],
           "queues": [
             {
               "name": "product.stock.adjusted",
@@ -141,14 +331,36 @@
             }
           ],
           "request": [
-            { "name": "quantity", "type": "Integer", "required": true  },
-            { "name": "reason",   "type": "String",  "required": true, "maxLength": 255 },
-            { "name": "operator", "type": "String",  "required": false }
+            {
+              "name": "quantity",
+              "type": "Integer",
+              "required": true
+            },
+            {
+              "name": "reason",
+              "type": "String",
+              "required": true,
+              "maxLength": 255
+            },
+            {
+              "name": "operator",
+              "type": "String",
+              "required": false
+            }
           ],
           "response": [
-            { "name": "previousStock", "type": "Integer"       },
-            { "name": "currentStock",  "type": "Integer"       },
-            { "name": "adjustedAt",    "type": "LocalDateTime" }
+            {
+              "name": "previousStock",
+              "type": "Integer"
+            },
+            {
+              "name": "currentStock",
+              "type": "Integer"
+            },
+            {
+              "name": "adjustedAt",
+              "type": "LocalDateTime"
+            }
           ]
         },
         {
@@ -159,12 +371,47 @@
           "requiresId": false,
           "request": [],
           "response": [
-            { "name": "synced",   "type": "Integer" },
-            { "name": "failed",   "type": "Integer" },
-            { "name": "syncedAt", "type": "LocalDateTime" }
+            {
+              "name": "synced",
+              "type": "Integer"
+            },
+            {
+              "name": "failed",
+              "type": "Integer"
+            },
+            {
+              "name": "syncedAt",
+              "type": "LocalDateTime"
+            }
           ]
         }
-      ]
+      ],
+      "crud": {
+        "pagination": true,
+        "defaultPageSize": 20,
+        "maxPageSize": 100,
+        "defaultSort": "name",
+        "defaultDirection": "ASC",
+        "sortable": [
+          "id",
+          "name",
+          "sku",
+          "price",
+          "stock",
+          "status",
+          "category.name"
+        ],
+        "filterable": [
+          {
+            "name": "categoryName",
+            "type": "String",
+            "label": "Categoria",
+            "operator": "CONTAINS",
+            "targetField": "category.name"
+          }
+        ],
+        "bulkOperations": true
+      }
     },
     {
       "name": "Order",
@@ -172,30 +419,112 @@
       "auditable": true,
       "softDelete": false,
       "apiPath": "/api/v1/orders",
-      "openApiTags": ["Orders"],
-      "roles": ["ADMIN"],
+      "openApiTags": [
+        "Orders"
+      ],
       "cache": {
         "enabled": false
       },
       "exportImport": {
         "enabled": true,
-        "formats": ["csv", "excel"],
-        "exportFields": ["customerName", "customerEmail", "total", "status"]
+        "formats": [
+          "csv",
+          "excel"
+        ],
+        "exportFields": [
+          "customerName",
+          "customerEmail",
+          "total",
+          "status"
+        ]
       },
       "fields": [
-        { "name": "customerName",  "type": "String",     "required": true,  "maxLength": 200 },
-        { "name": "customerEmail", "type": "String",     "required": true,  "maxLength": 200, "validations": ["@jakarta.validation.constraints.Email"] },
-        { "name": "total",         "type": "BigDecimal", "required": true,  "inRequest": false },
-        { "name": "status",        "type": "Enum",       "enumValues": ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"], "required": true },
-        { "name": "notes",         "type": "String",     "required": false, "maxLength": 1000 }
+        {
+          "name": "customerName",
+          "type": "String",
+          "required": true,
+          "maxLength": 200
+        },
+        {
+          "name": "customerEmail",
+          "type": "String",
+          "required": true,
+          "maxLength": 200,
+          "validations": [
+            "@jakarta.validation.constraints.Email"
+          ]
+        },
+        {
+          "name": "total",
+          "type": "BigDecimal",
+          "required": true,
+          "inRequest": false
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "enumValues": [
+            "PENDING",
+            "CONFIRMED",
+            "SHIPPED",
+            "DELIVERED",
+            "CANCELLED"
+          ],
+          "required": true
+        },
+        {
+          "name": "notes",
+          "type": "String",
+          "required": false,
+          "maxLength": 1000
+        }
       ],
       "filters": [
-        { "name": "customerName", "type": "String", "label": "Cliente", "operator": "CONTAINS" },
-        { "name": "customerEmail", "type": "String", "label": "Email", "operator": "STARTS_WITH" },
-        { "name": "status", "type": "Enum", "enumValues": ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"], "label": "Status" },
-        { "name": "totalMin", "type": "BigDecimal", "label": "Total mínimo", "operator": "GREATER_THAN_OR_EQUAL", "targetField": "total" },
-        { "name": "totalMax", "type": "BigDecimal", "label": "Total máximo", "operator": "LESS_THAN_OR_EQUAL", "targetField": "total" },
-        { "name": "hasNotes", "type": "String", "label": "Tem observações", "operator": "IS_NOT_NULL", "targetField": "notes" }
+        {
+          "name": "customerName",
+          "type": "String",
+          "label": "Cliente",
+          "operator": "CONTAINS"
+        },
+        {
+          "name": "customerEmail",
+          "type": "String",
+          "label": "Email",
+          "operator": "STARTS_WITH"
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "enumValues": [
+            "PENDING",
+            "CONFIRMED",
+            "SHIPPED",
+            "DELIVERED",
+            "CANCELLED"
+          ],
+          "label": "Status"
+        },
+        {
+          "name": "totalMin",
+          "type": "BigDecimal",
+          "label": "Total mínimo",
+          "operator": "GREATER_THAN_OR_EQUAL",
+          "targetField": "total"
+        },
+        {
+          "name": "totalMax",
+          "type": "BigDecimal",
+          "label": "Total máximo",
+          "operator": "LESS_THAN_OR_EQUAL",
+          "targetField": "total"
+        },
+        {
+          "name": "hasNotes",
+          "type": "String",
+          "label": "Tem observações",
+          "operator": "IS_NOT_NULL",
+          "targetField": "notes"
+        }
       ],
       "relations": [],
       "queues": [
@@ -214,7 +543,6 @@
           "httpMethod": "POST",
           "apiPath": "/{id}/confirm",
           "requiresId": true,
-          "roles": ["ADMIN"],
           "event": {
             "name": "OrderConfirmedEvent",
             "generateListener": true,
@@ -232,9 +560,18 @@
           ],
           "request": [],
           "response": [
-            { "name": "confirmed",   "type": "Boolean"       },
-            { "name": "confirmedAt", "type": "LocalDateTime" },
-            { "name": "message",     "type": "String"        }
+            {
+              "name": "confirmed",
+              "type": "Boolean"
+            },
+            {
+              "name": "confirmedAt",
+              "type": "LocalDateTime"
+            },
+            {
+              "name": "message",
+              "type": "String"
+            }
           ]
         },
         {
@@ -243,17 +580,34 @@
           "httpMethod": "POST",
           "apiPath": "/{id}/cancel",
           "requiresId": true,
-          "roles": ["ADMIN", "MANAGER"],
           "openApiResponses": [
-            { "code": 422, "description": "Pedido já foi entregue e não pode ser cancelado" }
+            {
+              "code": 422,
+              "description": "Pedido já foi entregue e não pode ser cancelado"
+            }
           ],
           "request": [
-            { "name": "reason",         "type": "String",  "required": true, "maxLength": 500 },
-            { "name": "notifyCustomer", "type": "Boolean", "required": false }
+            {
+              "name": "reason",
+              "type": "String",
+              "required": true,
+              "maxLength": 500
+            },
+            {
+              "name": "notifyCustomer",
+              "type": "Boolean",
+              "required": false
+            }
           ],
           "response": [
-            { "name": "cancelled",   "type": "Boolean"       },
-            { "name": "cancelledAt", "type": "LocalDateTime" }
+            {
+              "name": "cancelled",
+              "type": "Boolean"
+            },
+            {
+              "name": "cancelledAt",
+              "type": "LocalDateTime"
+            }
           ]
         },
         {
@@ -264,11 +618,95 @@
           "requiresId": false,
           "request": [],
           "response": [
-            { "name": "processed", "type": "Integer" },
-            { "name": "ranAt",     "type": "LocalDateTime" }
+            {
+              "name": "processed",
+              "type": "Integer"
+            },
+            {
+              "name": "ranAt",
+              "type": "LocalDateTime"
+            }
           ]
         }
       ]
+    },
+    {
+      "name": "Session",
+      "tableName": "sessions",
+      "apiPath": "/api/v1/sessions",
+      "auditable": true,
+      "fields": [
+        {
+          "name": "token",
+          "type": "String",
+          "required": true,
+          "unique": true,
+          "maxLength": 180,
+          "label": "Token",
+          "inResponse": false
+        },
+        {
+          "name": "ipAddress",
+          "type": "String",
+          "maxLength": 80,
+          "label": "IP",
+          "filterable": true
+        },
+        {
+          "name": "userAgent",
+          "type": "String",
+          "maxLength": 500,
+          "label": "User Agent"
+        },
+        {
+          "name": "expiresAt",
+          "type": "LocalDateTime",
+          "required": true,
+          "label": "Expira em",
+          "filterable": true,
+          "sortable": true
+        },
+        {
+          "name": "revokedAt",
+          "type": "LocalDateTime",
+          "label": "Revogado em",
+          "filterable": true,
+          "sortable": true
+        }
+      ],
+      "relations": [
+        {
+          "type": "ManyToOne",
+          "targetEntity": "Category",
+          "fieldName": "owner",
+          "joinColumn": "owner_id",
+          "required": true,
+          "fetch": "LAZY",
+          "cascade": "MERGE",
+          "displayField": "name",
+          "inRequest": true,
+          "inResponse": true
+        }
+      ],
+      "crud": {
+        "pagination": true,
+        "defaultPageSize": 20,
+        "maxPageSize": 100,
+        "sortable": [
+          "id",
+          "expiresAt",
+          "revokedAt"
+        ],
+        "filterable": [
+          {
+            "name": "ipAddress",
+            "type": "String",
+            "operator": "CONTAINS",
+            "targetField": "ipAddress",
+            "label": "IP"
+          }
+        ]
+      }
     }
   ]
 }

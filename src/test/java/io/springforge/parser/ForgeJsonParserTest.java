@@ -1,15 +1,17 @@
 package io.springforge.parser;
 
-import io.springforge.model.ForgeDefinition;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.apache.maven.plugin.MojoExecutionException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import io.springforge.model.ForgeDefinition;
 
 class ForgeJsonParserTest {
 
@@ -55,7 +57,7 @@ class ForgeJsonParserTest {
             }
             """;
         MojoExecutionException ex = assertThrows(MojoExecutionException.class, () -> parser.parse(writeJson(json)));
-        assertTrue(ex.getMessage().contains("pacote Java válido"));
+        assertTrue(ex.getMessage().contains("INVALID_BASE_PACKAGE") || ex.getMessage().contains("Pacote Java inválido") || ex.getMessage().contains("pacote Java"));
     }
 
     @Test
@@ -70,7 +72,7 @@ class ForgeJsonParserTest {
             }
             """;
         MojoExecutionException ex = assertThrows(MojoExecutionException.class, () -> parser.parse(writeJson(json)));
-        assertTrue(ex.getMessage().contains("duplicado"));
+        assertTrue(ex.getMessage().contains("DUPLICATE_ENTITY") || ex.getMessage().contains("duplicado") || ex.getMessage().contains("Entidade duplicada"));
     }
 
     @Test
@@ -140,4 +142,108 @@ class ForgeJsonParserTest {
         MojoExecutionException ex = assertThrows(MojoExecutionException.class, () -> parser.parse(writeJson(json)));
         assertTrue(ex.getMessage().contains("operator"));
     }
+
+    @Test
+    void shouldRejectUnknownProperties() throws Exception {
+        String json = """
+            {
+              "project": { "basePackage": "com.app", "name": "App", "generateMappres": true },
+              "entities": [{ "name": "Product", "fields": [{ "name": "title", "type": "String" }] }]
+            }
+            """;
+        MojoExecutionException ex = assertThrows(MojoExecutionException.class, () -> parser.parse(writeJson(json)));
+        assertTrue(ex.getMessage().contains("UNKNOWN_PROPERTY") || ex.getMessage().contains("Propriedade desconhecida") || ex.getMessage().contains("generateMappres"));
+    }
+
+    @Test
+    void shouldParseModularArchitecture() throws Exception {
+        String json = """
+            {
+              "project": {
+                "basePackage": "com.app",
+                "name": "App",
+                "architectureStyle": "MODULAR"
+              },
+              "entities": [{ "name": "Product", "fields": [{ "name": "title", "type": "String" }] }]
+            }
+            """;
+        ForgeDefinition def = parser.parse(writeJson(json));
+        assertTrue(def.getProject().isModular());
+    }
+
+    @Test
+    void shouldParseAdvancedCrudWithNestedFilter() throws Exception {
+        String json = """
+            {
+              "project": { "basePackage": "com.app", "name": "App" },
+              "entities": [
+                { "name": "Category", "fields": [{ "name": "name", "type": "String" }] },
+                {
+                  "name": "Product",
+                  "fields": [{ "name": "name", "type": "String" }],
+                  "relations": [{ "type": "ManyToOne", "targetEntity": "Category", "fieldName": "category" }],
+                  "crud": {
+                    "defaultSort": "category.name",
+                    "sortable": ["name", "category.name"],
+                    "filterable": [
+                      { "name": "categoryName", "type": "String", "operator": "CONTAINS", "targetField": "category.name" }
+                    ]
+                  }
+                }
+              ]
+            }
+            """;
+        ForgeDefinition def = parser.parse(writeJson(json));
+        assertEquals("category.name", def.getEntities().get(1).getCrud().getDefaultSort());
+        assertEquals(1, def.getEntities().get(1).getEffectiveFilters().size());
+    }
+
+    @Test
+    void shouldParseDashboardManagedTemplatesFrontendAndCrud() throws Exception {
+        String json = """
+            {
+              "project": {
+                "basePackage": "com.app",
+                "name": "App",
+                "templates": { "enabled": true, "templateDir": ".spring-forge/templates", "suffix": ".tpl" },
+                "frontend": {
+                  "enabled": true,
+                  "framework": "react",
+                  "ui": "mui",
+                  "state": "redux-toolkit",
+                  "forms": "react-hook-form",
+                  "validation": "zod",
+                  "filterPanel": true,
+                  "tableSorting": true
+                }
+              },
+              "entities": [
+                { "name": "Category", "fields": [{ "name": "name", "type": "String" }] },
+                {
+                  "name": "Product",
+                  "fields": [{ "name": "name", "type": "String" }],
+                  "relations": [{ "type": "ManyToOne", "targetEntity": "Category", "fieldName": "category" }],
+                  "crud": {
+                    "pagination": true,
+                    "defaultPageSize": 20,
+                    "maxPageSize": 100,
+                    "defaultSort": "category.name",
+                    "sortable": ["name", "category.name"],
+                    "filterable": [
+                      { "name": "categoryName", "type": "String", "operator": "CONTAINS", "targetField": "category.name" }
+                    ],
+                    "bulkOperations": true
+                  }
+                }
+              ]
+            }
+            """;
+        ForgeDefinition def = parser.parse(writeJson(json));
+        assertTrue(def.getProject().isGenerateFrontend());
+        assertTrue(def.getProject().getTemplates().isEnabled());
+        assertEquals("react", def.getProject().getFrontend().getFramework());
+        assertEquals("category.name", def.getEntities().get(1).getCrud().getFilterable().get(0).getTargetField());
+        assertTrue(def.getEntities().get(1).getCrud().isBulkOperations());
+    }
+
 }

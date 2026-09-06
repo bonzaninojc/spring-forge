@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.ArrayList;
 import java.util.List;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class FieldDefinition {
 
     /** Nome do campo em camelCase, ex: "firstName" */
@@ -53,6 +53,33 @@ public class FieldDefinition {
     /** Se o campo deve aparecer no DTO de criação/atualização */
     private boolean inRequest = true;
 
+    /** Label amigável usado pelo dashboard/frontend gerado. */
+    private String label;
+
+    /** Descrição/documentação do campo. */
+    private String description;
+
+    /** Placeholder sugerido para formulário frontend. */
+    private String placeholder;
+
+    /** Texto de ajuda para formulário frontend. */
+    private String helperText;
+
+    /** Precision para BigDecimal/@Column. */
+    private Integer precision;
+
+    /** Scale para BigDecimal/@Column. */
+    private Integer scale;
+
+    /** Se o campo deve ser candidato a filtro. */
+    private boolean filterable = false;
+
+    /** Se o campo deve ser candidato a ordenação. */
+    private boolean sortable = false;
+
+    /** Se o campo é somente leitura no request/frontend. */
+    private boolean readOnly = false;
+
     // --- Getters e Setters ---
 
     public String getName() { return name; }
@@ -90,4 +117,32 @@ public class FieldDefinition {
 
     public boolean isInRequest() { return inRequest; }
     public void setInRequest(boolean inRequest) { this.inRequest = inRequest; }
+
+    public String getLabel() { return label; }
+    public void setLabel(String label) { this.label = label; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public String getPlaceholder() { return placeholder; }
+    public void setPlaceholder(String placeholder) { this.placeholder = placeholder; }
+
+    public String getHelperText() { return helperText; }
+    public void setHelperText(String helperText) { this.helperText = helperText; }
+
+    public Integer getPrecision() { return precision; }
+    public void setPrecision(Integer precision) { this.precision = precision; }
+
+    public Integer getScale() { return scale; }
+    public void setScale(Integer scale) { this.scale = scale; }
+
+    public boolean isFilterable() { return filterable; }
+    public void setFilterable(boolean filterable) { this.filterable = filterable; }
+
+    public boolean isSortable() { return sortable; }
+    public void setSortable(boolean sortable) { this.sortable = sortable; }
+
+    public boolean isReadOnly() { return readOnly; }
+    public void setReadOnly(boolean readOnly) { this.readOnly = readOnly; }
+
 }

@@ -6,7 +6,7 @@
   <title>Spring Forge — Dashboard</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"/>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -137,11 +137,57 @@
     /* ── Empty state ── */
     .empty-state{text-align:center;padding:48px 20px;color:#94a3b8;}
     .empty-state h3{font-size:18px;margin-bottom:6px;color:#64748b;}
+    .hint{font-size:11px;color:#64748b;line-height:1.5;margin-top:6px;}
+    .pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+    .pill{border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;border-radius:999px;padding:3px 8px;font-size:11px;cursor:pointer;}
+    .pill:hover{background:#dbeafe;}
+    .code-inline{font-family:'JetBrains Mono',monospace;background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:11px;color:#334155;}
+    .code-block{font-family:'JetBrains Mono',monospace;background:#0f172a;color:#dbeafe;border-radius:8px;padding:10px;overflow:auto;font-size:11px;line-height:1.45;}
+    textarea.mono{font-family:'JetBrains Mono',monospace;min-height:76px;}
+
+    .toolbar-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .split-grid{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(360px,1.1fr);gap:14px;}
+    .mini-card{border:1px solid #e2e8f0;border-radius:10px;background:#fafcff;padding:12px;margin-bottom:10px;}
+    .mini-card.active{border-color:#1976d2;box-shadow:0 0 0 2px rgba(25,118,210,.08);}
+    .template-editor{font-family:'JetBrains Mono',monospace;min-height:220px;line-height:1.5;}
+    .template-path{font-family:'JetBrains Mono',monospace;font-size:12px;}
+    .preview-drawer{width:760px;}
+    .main.preview-wide{margin-right:760px!important;}
+    .preview-file-list{min-width:260px;max-width:320px;overflow:auto;}
+    .preview-file-item .path{display:block;font-size:10px;color:#64748b;margin-top:2px;white-space:normal;line-height:1.25;}
+    .filter-builder{display:grid;grid-template-columns:240px 1fr;gap:12px;margin-top:10px;}
+    .field-browser{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff;}
+    .field-browser h4{font-size:11px;color:#475569;background:#f8fafc;padding:8px 10px;border-bottom:1px solid #e2e8f0;}
+    .field-option{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:12px;}
+    .field-option:hover{background:#eff6ff;color:#1d4ed8;}
+    .field-option code{font-size:11px;color:#64748b;}
+    .filter-card{border:1px solid #e2e8f0;border-radius:10px;background:#fff;padding:12px;margin-bottom:10px;}
+    .filter-card.invalid{border-color:#fecaca;background:#fffafa;}
+    .filter-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+    .filter-badge{font-size:10px;font-family:'JetBrains Mono',monospace;background:#e0e7ff;color:#3730a3;border-radius:999px;padding:2px 7px;}
+    .copyable{font-family:'JetBrains Mono',monospace;background:#0f172a;color:#dbeafe;border-radius:8px;padding:10px;white-space:pre-wrap;font-size:11px;line-height:1.5;}
+    .sortable-chip{display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:4px 8px;font-size:11px;margin:3px;}
+    .sortable-chip button{border:none;background:transparent;color:#1d4ed8;cursor:pointer;font-weight:700;}
+
+    .validation-panel{margin-bottom:14px;border:1px solid #dbeafe;background:#f8fbff;border-radius:14px;padding:14px;box-shadow:0 4px 14px rgba(15,23,42,.05);}
+    .validation-panel.invalid{border-color:#fecaca;background:#fffafa;}
+    .validation-panel.valid{border-color:#bbf7d0;background:#f0fdf4;}
+    .validation-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
+    .validation-summary h3{font-size:15px;color:#0f172a;display:flex;align-items:center;gap:8px;}
+    .validation-issue{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:12px;margin-top:10px;}
+    .validation-issue.error{border-color:#fecaca;}
+    .validation-issue.warning{border-color:#fde68a;}
+    .validation-issue .issue-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px;}
+    .validation-issue .issue-title{font-weight:700;color:#1e293b;font-size:13px;}
+    .validation-issue .issue-meta{font-family:'JetBrains Mono',monospace;font-size:10px;background:#f1f5f9;border-radius:999px;padding:3px 7px;color:#475569;}
+    .validation-issue p{font-size:12px;color:#475569;line-height:1.45;margin:5px 0;}
+    .validation-issue .fix{background:#f8fafc;border-left:3px solid #1976d2;border-radius:6px;padding:8px;margin-top:8px;}
   </style>
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
+<script type="text/babel" data-presets="env" data-plugins="transform-react-jsx">
+  /** @jsxRuntime classic */
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
   // ── Heartbeat ──
@@ -154,7 +200,8 @@
     async validate(d) { return (await fetch('/api/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})).json(); },
     async generate(entities) { return (await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entities?{entities}:{})})).json(); },
     async reverse(params) { return (await fetch('/api/reverse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)})).json(); },
-    async preview(entity,layer) { return (await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity,layer})})).json(); },
+    async preview(entity,layer,forge) { return (await fetch('/api/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity,layer,forge})})).json(); },
+    async pomPreview(forge) { return (await fetch('/api/pom/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(forge)})).json(); },
   };
 
   // ── Simple Java syntax highlighter ──
@@ -188,15 +235,19 @@
   // Code Preview Drawer
   // ════════════════════════════════════════
   const LAYERS = [
+    {id:'all',        label:'Todos'},
     {id:'entity',     label:'Entity'},
     {id:'controller', label:'Controller'},
     {id:'service',    label:'Service'},
     {id:'repository', label:'Repository'},
     {id:'dto',        label:'DTO'},
     {id:'mapper',     label:'Mapper'},
+    {id:'filter',     label:'Filter'},
+    {id:'openapi',    label:'OpenAPI'},
+    {id:'templates',  label:'Templates'},
   ];
 
-  function PreviewDrawer({open, entityName, onClose}) {
+  function PreviewDrawer({open, entityName, forge, onClose}) {
     const [layer, setLayer] = useState('entity');
     const [loading, setLoading] = useState(false);
     const [files, setFiles] = useState({});
@@ -207,7 +258,7 @@
       if (!ent) return;
       setLoading(true); setError(null); setFiles({}); setActiveFile(null);
       try {
-        const r = await api.preview(ent, lyr);
+        const r = await api.preview(ent, lyr, forge);
         if (r.error) { setError(r.error); }
         else {
           setFiles(r.files || {});
@@ -244,7 +295,7 @@
                           {fileNames.map(f=>(
                                   <div key={f} className={`preview-file-item ${activeFile===f?'active':''}`}
                                        onClick={()=>setActiveFile(f)} title={f}>
-                                    📄 {f.split('/').pop()}
+                                    📄 {f.split('/').pop()}<span className="path">{f}</span>
                                   </div>
                           ))}
                         </div>
@@ -574,10 +625,16 @@
   // ════════════════════════════════════════
   // Project Page
   // ════════════════════════════════════════
-  function ProjectPage({project,onChange}) {
+  function ProjectPage({forge,project,onChange}) {
     const set=(k,v)=>onChange({...project,[k]:v});
-    const flags=['generateMigrations','generateMappers','generateFrontend','generateRabbitMQ','generateOpenApi','generateSpringEvents','generateScheduled','generateTests','generateSecurity','generateCache'];
-    const labels={generateMigrations:'Migrations',generateMappers:'Mappers',generateFrontend:'Frontend React',generateRabbitMQ:'RabbitMQ',generateOpenApi:'OpenAPI',generateSpringEvents:'Spring Events',generateScheduled:'Scheduled',generateTests:'Testes',generateSecurity:'Security/RBAC',generateCache:'Cache'};
+    const pom={autoUpdate:false,createBackup:true,addComments:true,managePlugins:true,...(project.pom||{})};
+    const setPom=(k,v)=>onChange({...project,pom:{...pom,[k]:v}});
+    const [pomPlan,setPomPlan]=useState(null);
+    const [pomLoading,setPomLoading]=useState(false);
+    const flags=['generateMigrations','generateMappers','generateFrontend','generateRabbitMQ','generateOpenApi','generateSpringEvents','generateScheduled','generateTests','generateCache'];
+    const labels={generateMigrations:'Migrations',generateMappers:'Mappers',generateFrontend:'Frontend React',generateRabbitMQ:'RabbitMQ',generateOpenApi:'OpenAPI',generateSpringEvents:'Spring Events',generateScheduled:'Scheduled',generateTests:'Testes',generateCache:'Cache'};
+    const loadPomPlan=async()=>{setPomLoading(true);try{const r=await api.pomPreview({...forge,project});setPomPlan(r);}catch(e){setPomPlan({error:'Não foi possível calcular dependências'});}setPomLoading(false);};
+    useEffect(()=>{loadPomPlan();},[project.generateMappers,project.generateOpenApi,project.generateRabbitMQ,project.generateCache,project.generateMigrations,project.generateTests,project.database]);
     return (<div>
       <div className="page-title">⚙️ Configuração do Projeto</div>
       <div className="card">
@@ -588,6 +645,7 @@
             {project.basePackage&&!/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/.test(project.basePackage)&&<span className="warn">⚠ Pacote inválido</span>}
           </div>
           <div className="form-group"><label>Banco de Dados</label><select value={project.database||'postgres'} onChange={e=>set('database',e.target.value)}><option value="postgres">PostgreSQL</option><option value="mysql">MySQL</option><option value="h2">H2</option><option value="mongodb">MongoDB</option></select></div>
+          <div className="form-group"><label>Arquitetura</label><select value={project.architectureStyle||'LAYERED'} onChange={e=>set('architectureStyle',e.target.value)}><option value="LAYERED">Layered (Camadas)</option><option value="HEXAGONAL">Hexagonal (Ports & Adapters)</option><option value="MODULAR">Modular (por domínio)</option></select></div>
         </div>
       </div>
       <div className="card">
@@ -599,23 +657,234 @@
           </div>))}
         </div>
       </div>
+      <div className="card">
+        <h3>🧬 Atualizar pom.xml automaticamente</h3>
+        <p className="muted">Quando habilitado, o goal <code>spring-forge:generate</code> adiciona no pom.xml do projeto usuário as dependências exigidas pelas features ativas, sem duplicar dependências existentes.</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:8}}>
+          <div className="form-group checkbox-group"><input id="pom-auto" type="checkbox" checked={pom.autoUpdate||false} onChange={e=>setPom('autoUpdate',e.target.checked)}/><label htmlFor="pom-auto">Modificar pom.xml ao gerar</label></div>
+          <div className="form-group checkbox-group"><input id="pom-bak" type="checkbox" checked={pom.createBackup!==false} onChange={e=>setPom('createBackup',e.target.checked)}/><label htmlFor="pom-bak">Criar backup pom.xml.spring-forge.bak</label></div>
+          <div className="form-group checkbox-group"><input id="pom-comments" type="checkbox" checked={pom.addComments!==false} onChange={e=>setPom('addComments',e.target.checked)}/><label htmlFor="pom-comments">Adicionar comentários Spring Forge</label></div>
+          <div className="form-group checkbox-group"><input id="pom-plugins" type="checkbox" checked={pom.managePlugins!==false} onChange={e=>setPom('managePlugins',e.target.checked)}/><label htmlFor="pom-plugins">Gerenciar plugins auxiliares</label></div>
+        </div>
+        <div style={{display:'flex',gap:8,alignItems:'center',margin:'10px 0'}}>
+          <button className="btn secondary" onClick={loadPomPlan} disabled={pomLoading}>{pomLoading?'Calculando...':'Atualizar preview do POM'}</button>
+          <span className={pom.autoUpdate?'ok':'warn'}>{pom.autoUpdate?'Vai alterar o pom.xml ao gerar':'Modo preview: não altera pom.xml'}</span>
+        </div>
+        {pomPlan?.error && <div className="error">{pomPlan.error}</div>}
+        {pomPlan && !pomPlan.error && <div className="mini-card">
+          <h4>Dependências que o Spring Forge considera necessárias ({(pomPlan.dependencies||[]).length})</h4>
+          <div style={{display:'grid',gap:6}}>
+            {(pomPlan.dependencies||[]).map((d,i)=><div key={i} style={{display:'grid',gridTemplateColumns:'1fr 120px 1fr',gap:8,fontSize:12,alignItems:'center'}}>
+              <code>{d.groupId}:{d.artifactId}{d.version?`:${d.version}`:''}</code>
+              <span>{d.scope||'compile'}</span>
+              <span className="muted">{d.reason}</span>
+            </div>)}
+          </div>
+          {Object.keys(pomPlan.properties||{}).length>0 && <>
+            <h4 style={{marginTop:12}}>Properties</h4>
+            {Object.entries(pomPlan.properties||{}).map(([k,v])=><div key={k} style={{fontSize:12}}><code>{k}</code> = <code>{v}</code></div>)}
+          </>}
+        </div>}
+      </div>
+    </div>);
+  }
+
+
+  function parseCsv(value) {
+    return (value || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+  }
+
+  function joinCsv(values) {
+    return (values || []).join(', ');
+  }
+
+  function defaultCrud() {
+    return {
+      enabled: true,
+      pagination: true,
+      defaultPageSize: 20,
+      maxPageSize: 100,
+      defaultSort: 'id',
+      defaultDirection: 'ASC',
+      sortable: ['id'],
+      filterable: [],
+      bulkOperations: false
+    };
+  }
+
+  function getFieldPathOptions(entity, allEntities) {
+    const options = [{value:'id', label:'id (Long)'}];
+    (entity.fields || []).forEach(f => {
+      if (f.name) options.push({value:f.name, label:`${f.name} (${f.type || 'String'})`});
+    });
+    (entity.relations || []).forEach(r => {
+      if (!r.fieldName || !r.targetEntity) return;
+      options.push({value:`${r.fieldName}.id`, label:`${r.fieldName}.id (${r.targetEntity})`});
+      const target = (allEntities || []).find(e => e.name === r.targetEntity);
+      (target?.fields || []).forEach(tf => {
+        if (tf.name) options.push({value:`${r.fieldName}.${tf.name}`, label:`${r.fieldName}.${tf.name} (${r.targetEntity}.${tf.type || 'String'})`});
+      });
+    });
+    return [...new Map(options.map(o => [o.value, o])).values()];
+  }
+
+  function inferFieldType(path, pathOptions) {
+    const opt = (pathOptions || []).find(o => o.value === path);
+    const label = opt?.label || '';
+    const m = label.match(/\(([^)]+)\)/);
+    if (!m) return 'String';
+    const raw = m[1].includes('.') ? m[1].split('.').pop() : m[1];
+    return raw || 'String';
+  }
+
+  function toParamName(path) {
+    if (!path) return '';
+    return path.replace(/\.([a-zA-Z])/g, (_, c) => c.toUpperCase()).replace(/[^a-zA-Z0-9]/g, '');
+  }
+
+  function operatorHelp(op) {
+    const map = {
+      CONTAINS:'Busca parcial com LIKE, ideal para texto.',
+      EQUALS:'Valor exato.', NOT_EQUALS:'Diferente do valor.',
+      STARTS_WITH:'Texto começando com o valor.', ENDS_WITH:'Texto terminando com o valor.',
+      GREATER_THAN:'Maior que.', GREATER_THAN_OR_EQUAL:'Maior ou igual.', LESS_THAN:'Menor que.', LESS_THAN_OR_EQUAL:'Menor ou igual.',
+      IN:'Lista separada por vírgula.', BETWEEN:'Use dois parâmetros: min/max ou valor inicial/final.', IS_NULL:'Não precisa valor.', IS_NOT_NULL:'Não precisa valor.'
+    };
+    return map[op] || '';
+  }
+
+  function defaultOperatorForType(type) {
+    if (['Integer','Long','Double','Float','BigDecimal','LocalDate','LocalDateTime'].includes(type)) return 'EQUALS';
+    if (type === 'Boolean' || type === 'Enum' || type === 'UUID') return 'EQUALS';
+    return 'CONTAINS';
+  }
+
+  function CrudAdvancedSection({entity, allEntities, onChange}) {
+    const crud = {...defaultCrud(), ...(entity.crud || {})};
+    const operators=['EQUALS','NOT_EQUALS','CONTAINS','STARTS_WITH','ENDS_WITH','GREATER_THAN','GREATER_THAN_OR_EQUAL','LESS_THAN','LESS_THAN_OR_EQUAL','IN','BETWEEN','IS_NULL','IS_NOT_NULL'];
+    const types=['String','Integer','Long','Double','Float','BigDecimal','Boolean','LocalDate','LocalDateTime','UUID','Enum'];
+    const pathOptions = getFieldPathOptions(entity, allEntities);
+    const simplePaths = pathOptions.filter(o => !o.value.includes('.'));
+    const relationPaths = pathOptions.filter(o => o.value.includes('.'));
+    const filterable = crud.filterable || [];
+    const sortable = crud.sortable || [];
+    const datalistId = `paths-${entity.name || 'entity'}`;
+
+    const setCrud=(k,v)=>onChange({...entity, crud:{...crud,[k]:v}});
+    const updFilter=(i,k,v)=>{const u=[...filterable];u[i]={...u[i],[k]:v};setCrud('filterable',u);};
+    const delFilter=(i)=>setCrud('filterable',filterable.filter((_,idx)=>idx!==i));
+    const addSortable=(path)=>{ if(!path || sortable.includes(path)) return; setCrud('sortable',[...sortable,path]); };
+    const delSortable=(path)=>setCrud('sortable', sortable.filter(p => p !== path));
+
+    const addFilterForPath=(path)=>{
+      const type = inferFieldType(path, pathOptions);
+      const op = defaultOperatorForType(type);
+      setCrud('filterable',[...filterable,{name:toParamName(path),type,operator:op,targetField:path,label:path.split('.').map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(' '),required:false}]);
+    };
+    const addBlankFilter=()=>setCrud('filterable',[...filterable,{name:'',type:'String',operator:'CONTAINS',targetField:'',label:'',required:false}]);
+    const applyPreset=(kind)=>{
+      if (kind === 'text') {
+        const f=(entity.fields||[]).filter(x=>['String','Text'].includes(x.type||'String')).slice(0,4);
+        f.forEach(x=>{ if(!filterable.some(ff=>ff.targetField===x.name)) addFilterForPath(x.name); });
+      }
+      if (kind === 'relations') relationPaths.slice(0,8).forEach(o=>{ if(!filterable.some(ff=>ff.targetField===o.value)) addFilterForPath(o.value); });
+      if (kind === 'all-sort') pathOptions.forEach(o=>addSortable(o.value));
+    };
+
+    const queryExample = filterable.length
+      ? '/api/v1/' + ((entity.apiPath || entity.name || 'entities').toString().replace(/^\/api\/v\d+\//,'').replace(/^\//,'')) + '?' + filterable.slice(0,4).map(f => `${f.name || toParamName(f.targetField)}=${['IS_NULL','IS_NOT_NULL'].includes(f.operator)?'true':'valor'}`).join('&') + `&sort=${crud.defaultSort||'id'},${(crud.defaultDirection||'ASC').toLowerCase()}`
+      : '/api/v1/' + ((entity.apiPath || entity.name || 'entities').toString().replace(/^\/api\/v\d+\//,'').replace(/^\//,'')) + '?page=0&size=' + (crud.defaultPageSize||20);
+
+    return (<div className="card">
+      <h3>🚀 CRUD avançado</h3>
+      <div className="form-grid">
+        <div className="form-group checkbox-group"><input type="checkbox" checked={crud.enabled!==false} onChange={e=>setCrud('enabled',e.target.checked)} id={`crud-en-${entity.name}`}/><label htmlFor={`crud-en-${entity.name}`}>Ativo</label></div>
+        <div className="form-group checkbox-group"><input type="checkbox" checked={crud.pagination!==false} onChange={e=>setCrud('pagination',e.target.checked)} id={`crud-pag-${entity.name}`}/><label htmlFor={`crud-pag-${entity.name}`}>Paginação</label></div>
+        <div className="form-group checkbox-group"><input type="checkbox" checked={crud.bulkOperations||false} onChange={e=>setCrud('bulkOperations',e.target.checked)} id={`crud-bulk-${entity.name}`}/><label htmlFor={`crud-bulk-${entity.name}`}>Bulk operations</label></div>
+        <div className="form-group"><label>Page size padrão</label><input type="number" min="1" value={crud.defaultPageSize||20} onChange={e=>setCrud('defaultPageSize', +e.target.value || 20)}/></div>
+        <div className="form-group"><label>Page size máximo</label><input type="number" min="1" value={crud.maxPageSize||100} onChange={e=>setCrud('maxPageSize', +e.target.value || 100)}/></div>
+        <div className="form-group"><label>Sort padrão</label><input list={datalistId} value={crud.defaultSort||'id'} onChange={e=>setCrud('defaultSort', e.target.value)} placeholder="id ou category.name"/></div>
+        <div className="form-group"><label>Direção padrão</label><select value={crud.defaultDirection||'ASC'} onChange={e=>setCrud('defaultDirection', e.target.value)}><option>ASC</option><option>DESC</option></select></div>
+      </div>
+
+      <datalist id={datalistId}>{pathOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</datalist>
+
+      <div className="mini-card" style={{marginTop:14}}>
+        <div className="toolbar-row" style={{justifyContent:'space-between'}}>
+          <h3 style={{margin:0}}>↕️ Ordenação liberada</h3>
+          <div className="toolbar-row">
+            <button className="btn-sm btn-add" onClick={()=>applyPreset('all-sort')}>Liberar todos</button>
+            <button className="btn-sm btn-danger" onClick={()=>setCrud('sortable',[])}>Limpar</button>
+          </div>
+        </div>
+        <div style={{marginTop:8}}>
+          {sortable.length ? sortable.map(p=><span key={p} className="sortable-chip">{p}<button onClick={()=>delSortable(p)}>×</button></span>) : <span className="hint">Nenhum campo liberado ainda.</span>}
+        </div>
+        <div className="pill-row">
+          {pathOptions.filter(o=>!sortable.includes(o.value)).slice(0,14).map(o=><button type="button" className="pill" key={o.value} onClick={()=>addSortable(o.value)}>+ {o.value}</button>)}
+        </div>
+        <div className="hint">Inclua campos relacionados como <span className="code-inline">category.name</span> para permitir <span className="code-inline">sort=category.name,asc</span>.</div>
+      </div>
+
+      <div style={{marginTop:14}}>
+        <div className="toolbar-row" style={{justifyContent:'space-between',marginBottom:8}}>
+          <h3 style={{margin:0}}>🔎 Builder avançado de filtros ({filterable.length})</h3>
+          <div className="toolbar-row">
+            <button className="btn-sm btn-add" onClick={addBlankFilter}>+ Filtro manual</button>
+            <button className="btn-sm btn-purple" onClick={()=>applyPreset('text')}>+ Campos texto</button>
+            <button className="btn-sm btn-purple" onClick={()=>applyPreset('relations')}>+ Relações</button>
+          </div>
+        </div>
+        <div className="filter-builder">
+          <div className="field-browser">
+            <h4>Campos da entidade</h4>
+            {simplePaths.map(o=><div className="field-option" key={o.value} onClick={()=>addFilterForPath(o.value)}><span>{o.value}</span><code>{o.label}</code></div>)}
+            {relationPaths.length>0 && <h4>Campos relacionados</h4>}
+            {relationPaths.map(o=><div className="field-option" key={o.value} onClick={()=>addFilterForPath(o.value)}><span>{o.value}</span><code>{o.label}</code></div>)}
+          </div>
+          <div>
+            {filterable.length===0 && <div className="empty-state" style={{padding:28}}><h3>Nenhum filtro configurado</h3><p>Clique em um campo ao lado para criar filtros, incluindo relações como <span className="code-inline">category.name</span>.</p></div>}
+            {filterable.map((f,i)=>{
+              const invalid = !f.name || !f.targetField;
+              return <div key={i} className={`filter-card ${invalid?'invalid':''}`}>
+                <div className="filter-head">
+                  <span className="filter-badge">#{i+1}</span>
+                  <strong style={{fontSize:13,flex:1}}>{f.label || f.name || 'Novo filtro'}</strong>
+                  {f.targetField?.includes('.') && <span className="rel-tag">relação</span>}
+                  <button className="btn-sm btn-danger" onClick={()=>delFilter(i)}>Excluir</button>
+                </div>
+                <div className="form-grid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))'}}>
+                  <div className="form-group"><label>Nome do parâmetro</label><input value={f.name||''} onChange={e=>updFilter(i,'name',e.target.value)} placeholder="categoryName"/></div>
+                  <div className="form-group"><label>Campo alvo</label><input list={datalistId} value={f.targetField||''} onChange={e=>{updFilter(i,'targetField',e.target.value); if(!f.name) updFilter(i,'name',toParamName(e.target.value));}} placeholder="category.name"/></div>
+                  <div className="form-group"><label>Tipo</label><select value={f.type||'String'} onChange={e=>updFilter(i,'type',e.target.value)}>{types.map(t=><option key={t}>{t}</option>)}</select></div>
+                  <div className="form-group"><label>Operador</label><select value={f.operator||'CONTAINS'} onChange={e=>updFilter(i,'operator',e.target.value)}>{operators.map(o=><option key={o}>{o}</option>)}</select><div className="hint">{operatorHelp(f.operator||'CONTAINS')}</div></div>
+                  <div className="form-group"><label>Label na UI</label><input value={f.label||''} onChange={e=>updFilter(i,'label',e.target.value)} placeholder="Categoria"/></div>
+                  <div className="form-group checkbox-group"><input type="checkbox" checked={f.required||false} onChange={e=>updFilter(i,'required',e.target.checked)} id={`flt-req-${entity.name}-${i}`}/><label htmlFor={`flt-req-${entity.name}-${i}`}>Obrigatório</label></div>
+                  {f.type==='Enum'&&<div className="form-group"><label>Enum values</label><input value={(f.enumValues||[]).join(',')} onChange={e=>updFilter(i,'enumValues',parseCsv(e.target.value))} placeholder="ACTIVE,INACTIVE"/></div>}
+                </div>
+              </div>})}
+          </div>
+        </div>
+        <div className="hint">Exemplo para produto por nome da categoria: parâmetro <span className="code-inline">categoryName</span>, operador <span className="code-inline">CONTAINS</span>, target <span className="code-inline">category.name</span>.</div>
+        <div style={{marginTop:10}}><div className="copyable">{queryExample}</div></div>
+      </div>
     </div>);
   }
 
   // ════════════════════════════════════════
   // Entity Page (Fields + Relations)
   // ════════════════════════════════════════
-  function EntityPage({entity,allNames,onChange,showPreview}) {
+  function EntityPage({entity,allNames,allEntities,onChange,showPreview}) {
     const set=(k,v)=>onChange({...entity,[k]:v});
     const types=['String','Integer','Long','Double','Float','BigDecimal','Boolean','LocalDate','LocalDateTime','UUID','Enum'];
     const fields=entity.fields||[]; const relations=entity.relations||[]; const filters=entity.filters||[];
     const operators=['EQUALS','NOT_EQUALS','CONTAINS','STARTS_WITH','ENDS_WITH','GREATER_THAN','GREATER_THAN_OR_EQUAL','LESS_THAN','LESS_THAN_OR_EQUAL','IN','BETWEEN','IS_NULL','IS_NOT_NULL'];
 
-    const addField=()=>set('fields',[...fields,{name:'',type:'String',required:false}]);
+    const addField=(preset={})=>set('fields',[...fields,{name:'',type:'String',required:false,inRequest:true,inResponse:true,...preset}]);
     const updField=(i,k,v)=>{const u=[...fields];u[i]={...u[i],[k]:v};set('fields',u);};
     const delField=(i)=>set('fields',fields.filter((_,idx)=>idx!==i));
 
-    const addRel=()=>set('relations',[...relations,{type:'ManyToOne',targetEntity:'',fieldName:'',fetch:'LAZY',cascade:'MERGE,PERSIST',inResponse:true}]);
+    const addRel=(preset={})=>set('relations',[...relations,{type:'ManyToOne',targetEntity:'',fieldName:'',fetch:'LAZY',cascade:'MERGE,PERSIST',inRequest:true,inResponse:true,...preset}]);
     const updRel=(i,k,v)=>{const u=[...relations];u[i]={...u[i],[k]:v};set('relations',u);};
     const delRel=(i)=>set('relations',relations.filter((_,idx)=>idx!==i));
 
@@ -624,6 +893,45 @@
     const delFilter=(i)=>set('filters',filters.filter((_,idx)=>idx!==i));
 
     const ei=entity.exportImport||{}; const setEi=(k,v)=>set('exportImport',{...ei,[k]:v});
+
+    const addFieldPreset=(kind)=>{
+      const existing = new Set(fields.map(f=>f.name));
+      const presets = {
+        identity:[{name:'name',type:'String',required:true,maxLength:120,label:'Nome',filterable:true,sortable:true},{name:'description',type:'String',maxLength:500,label:'Descrição'}],
+        auditBusiness:[{name:'active',type:'Boolean',required:true,defaultValue:'true',label:'Ativo',filterable:true,sortable:true},{name:'status',type:'Enum',enumValues:['ACTIVE','INACTIVE'],label:'Status',filterable:true,sortable:true}],
+        money:[{name:'price',type:'BigDecimal',required:true,precision:19,scale:2,label:'Preço',filterable:true,sortable:true},{name:'currency',type:'String',maxLength:3,defaultValue:'BRL',label:'Moeda'}],
+        session:[
+          {name:'token',type:'String',required:true,unique:true,maxLength:180,label:'Token',inResponse:false},
+          {name:'ipAddress',type:'String',maxLength:80,label:'IP',filterable:true},
+          {name:'userAgent',type:'String',maxLength:500,label:'User Agent'},
+          {name:'expiresAt',type:'LocalDateTime',required:true,label:'Expira em',filterable:true,sortable:true},
+          {name:'revokedAt',type:'LocalDateTime',label:'Revogado em',filterable:true,sortable:true}
+        ]
+      };
+      const toAdd=(presets[kind]||[]).filter(f=>!existing.has(f.name));
+      if (toAdd.length) set('fields',[...fields,...toAdd]);
+    };
+
+    const applyFieldFlagsToCrud=()=>{
+      const crud={...defaultCrud(),...(entity.crud||{})};
+      const sortable=[...(crud.sortable||[])];
+      const filterable=[...(crud.filterable||[])];
+      fields.forEach(f=>{
+        if (!f.name) return;
+        if (f.sortable && !sortable.includes(f.name)) sortable.push(f.name);
+        if (f.filterable && !filterable.some(x=>x.targetField===f.name)) {
+          filterable.push({name:f.name,type:f.type||'String',operator:defaultOperatorForType(f.type||'String'),targetField:f.name,label:f.label||f.name});
+        }
+      });
+      set('crud',{...crud,sortable,filterable});
+    };
+
+    const targetFieldsFor=(target)=>((allEntities||[]).find(e=>e.name===target)?.fields||[]).filter(f=>f.name);
+    const relationNameSuggestion=(target,type)=>{
+      if(!target) return '';
+      const base=target.charAt(0).toLowerCase()+target.slice(1);
+      return ['OneToMany','ManyToMany'].includes(type||'') ? base+'s' : base;
+    };
 
     return (<div>
       <div className="page-title" style={{justifyContent:'space-between'}}>
@@ -641,50 +949,102 @@
           <div className="form-group"><label>API Path</label><input value={entity.apiPath||''} onChange={e=>set('apiPath',e.target.value)} placeholder="/api/v1/products"/>
             {entity.apiPath&&!entity.apiPath.startsWith('/')&&<span className="warn">⚠ Deve iniciar com /</span>}
           </div>
-          <div className="form-group"><label>Roles</label><input value={(entity.roles||[]).join(', ')} onChange={e=>set('roles',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} placeholder="ADMIN, USER"/></div>
-          <div className="form-group checkbox-group"><input type="checkbox" checked={entity.auditable!==false} onChange={e=>set('auditable',e.target.checked)} id="aud"/><label htmlFor="aud">Auditoria</label></div>
-          <div className="form-group checkbox-group"><input type="checkbox" checked={entity.softDelete||false} onChange={e=>set('softDelete',e.target.checked)} id="sd"/><label htmlFor="sd">Soft Delete</label></div>
+          <div className="form-group"><label>Gerar camadas</label><input value={(entity.generate||[]).join(', ')} onChange={e=>set('generate',parseCsv(e.target.value))} placeholder="vazio = todas"/><div className="hint">Ex: entity, repository, service, controller, dto, mapper, migration, frontend</div></div>
+          <div className="form-group"><label>OpenAPI tags</label><input value={(entity.openApiTags||[]).join(', ')} onChange={e=>set('openApiTags',parseCsv(e.target.value))} placeholder="Products, Catalog"/></div>
+          <div className="form-group checkbox-group"><input type="checkbox" checked={entity.auditable!==false} onChange={e=>set('auditable',e.target.checked)} id={`aud-${entity.name}`}/><label htmlFor={`aud-${entity.name}`}>Auditoria</label></div>
+          <div className="form-group checkbox-group"><input type="checkbox" checked={entity.softDelete||false} onChange={e=>set('softDelete',e.target.checked)} id={`sd-${entity.name}`}/><label htmlFor={`sd-${entity.name}`}>Soft Delete</label></div>
         </div>
       </div>
 
       <div className="card">
-        <h3>📋 Campos ({fields.length})</h3>
-        {fields.length>0&&<table><thead><tr><th>Nome</th><th>Tipo</th><th>Req</th><th>Unique</th><th>Max</th><th>Enum Values</th><th></th></tr></thead><tbody>
-        {fields.map((f,i)=>(<tr key={i}>
-          <td><input value={f.name||''} onChange={e=>updField(i,'name',e.target.value)} style={{border:'none',fontSize:12,width:110}} placeholder="campo"/>
-            {f.name&&!/^[a-z][a-zA-Z0-9]*$/.test(f.name)&&<span className="warn"> ⚠</span>}</td>
-          <td><select value={f.type||'String'} onChange={e=>updField(i,'type',e.target.value)} style={{border:'none',fontSize:12}}>{types.map(t=><option key={t}>{t}</option>)}</select></td>
-          <td><input type="checkbox" checked={f.required||false} onChange={e=>updField(i,'required',e.target.checked)}/></td>
-          <td><input type="checkbox" checked={f.unique||false} onChange={e=>updField(i,'unique',e.target.checked)}/></td>
-          <td><input type="number" value={f.maxLength||''} onChange={e=>updField(i,'maxLength',e.target.value?+e.target.value:null)} style={{width:48,border:'none',fontSize:12}}/></td>
-          <td>{f.type==='Enum'&&<input value={(f.enumValues||[]).join(',')} onChange={e=>updField(i,'enumValues',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} style={{fontSize:11,border:'1px solid #e2e8f0',borderRadius:4,padding:'2px 4px',width:110}} placeholder="VAL1,VAL2"/>}
-            {f.type==='Enum'&&(!f.enumValues||!f.enumValues.length)&&<span className="warn"> ⚠</span>}</td>
-          <td><button className="btn-sm btn-danger" onClick={()=>delField(i)}>✕</button></td>
-        </tr>))}
-        </tbody></table>}
-        <button className="btn-sm btn-add" onClick={addField} style={{marginTop:10}}>+ Campo</button>
+        <div className="toolbar-row" style={{justifyContent:'space-between'}}>
+          <h3 style={{margin:0}}>📋 Campos ({fields.length})</h3>
+          <div className="toolbar-row">
+            <button className="btn-sm btn-purple" onClick={()=>addFieldPreset('identity')}>+ Nome/Descrição</button>
+            <button className="btn-sm btn-purple" onClick={()=>addFieldPreset('auditBusiness')}>+ Status</button>
+            <button className="btn-sm btn-purple" onClick={()=>addFieldPreset('money')}>+ Preço</button>
+            <button className="btn-sm btn-purple" onClick={()=>addFieldPreset('session')}>+ Sessão</button>
+            <button className="btn-sm btn-add" onClick={()=>addField()}>+ Campo</button>
+          </div>
+        </div>
+        <div className="hint" style={{marginTop:6}}>Agora cada campo pode ter label, coluna, validações, precision/scale, request/response e marcações para filtro/ordenação.</div>
+        {fields.length===0 && <div className="empty-state">Nenhum campo ainda. Use os presets ou clique em + Campo.</div>}
+        {fields.map((f,i)=>(<div key={i} className="mini-card" style={{marginTop:12}}>
+          <div className="toolbar-row" style={{justifyContent:'space-between'}}>
+            <strong>{f.name || `Campo ${i+1}`}</strong>
+            <button className="btn-sm btn-danger" onClick={()=>delField(i)}>Excluir</button>
+          </div>
+          <div className="form-grid" style={{marginTop:8}}>
+            <div className="form-group"><label>Nome</label><input value={f.name||''} onChange={e=>updField(i,'name',e.target.value)} placeholder="firstName"/>{f.name&&!/^[a-z][a-zA-Z0-9]*$/.test(f.name)&&<span className="warn">⚠ camelCase</span>}</div>
+            <div className="form-group"><label>Tipo</label><select value={f.type||'String'} onChange={e=>updField(i,'type',e.target.value)}>{types.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div className="form-group"><label>Label frontend</label><input value={f.label||''} onChange={e=>updField(i,'label',e.target.value)} placeholder="Nome"/></div>
+            <div className="form-group"><label>Coluna DB</label><input value={f.columnName||''} onChange={e=>updField(i,'columnName',e.target.value||undefined)} placeholder="(auto snake_case)"/></div>
+            <div className="form-group"><label>Placeholder</label><input value={f.placeholder||''} onChange={e=>updField(i,'placeholder',e.target.value)} placeholder="Digite..."/></div>
+            <div className="form-group"><label>Helper text</label><input value={f.helperText||''} onChange={e=>updField(i,'helperText',e.target.value)} placeholder="Texto de ajuda"/></div>
+            <div className="form-group"><label>Min length</label><input type="number" value={f.minLength??''} onChange={e=>updField(i,'minLength',e.target.value?+e.target.value:null)}/></div>
+            <div className="form-group"><label>Max length</label><input type="number" value={f.maxLength??''} onChange={e=>updField(i,'maxLength',e.target.value?+e.target.value:null)}/></div>
+            {f.type==='BigDecimal' && <><div className="form-group"><label>Precision</label><input type="number" value={f.precision??''} onChange={e=>updField(i,'precision',e.target.value?+e.target.value:null)} placeholder="19"/></div><div className="form-group"><label>Scale</label><input type="number" value={f.scale??''} onChange={e=>updField(i,'scale',e.target.value?+e.target.value:null)} placeholder="2"/></div></>}
+            <div className="form-group"><label>Default value</label><input value={f.defaultValue||''} onChange={e=>updField(i,'defaultValue',e.target.value||undefined)} placeholder="true, 0, ACTIVE..."/></div>
+            <div className="form-group"><label>Validações extras</label><input value={(f.validations||[]).join(', ')} onChange={e=>updField(i,'validations',parseCsv(e.target.value))} placeholder="@Email, @Positive"/></div>
+            {f.type==='Enum' && <div className="form-group" style={{gridColumn:'span 2'}}><label>Enum values</label><input value={(f.enumValues||[]).join(', ')} onChange={e=>updField(i,'enumValues',parseCsv(e.target.value))} placeholder="ACTIVE, INACTIVE"/>{(!f.enumValues||!f.enumValues.length)&&<span className="warn">⚠ enumValues obrigatório</span>}</div>}
+            <div className="form-group" style={{gridColumn:'span 2'}}><label>Descrição</label><textarea value={f.description||''} onChange={e=>updField(i,'description',e.target.value)} placeholder="Documentação curta do campo"/></div>
+          </div>
+          <div className="pill-row" style={{marginTop:8}}>
+            <label className="pill"><input type="checkbox" checked={f.required||false} onChange={e=>updField(i,'required',e.target.checked)}/> Obrigatório</label>
+            <label className="pill"><input type="checkbox" checked={f.unique||false} onChange={e=>updField(i,'unique',e.target.checked)}/> Único</label>
+            <label className="pill"><input type="checkbox" checked={f.inRequest!==false} onChange={e=>updField(i,'inRequest',e.target.checked)}/> Request DTO</label>
+            <label className="pill"><input type="checkbox" checked={f.inResponse!==false} onChange={e=>updField(i,'inResponse',e.target.checked)}/> Response DTO</label>
+            <label className="pill"><input type="checkbox" checked={f.readOnly||false} onChange={e=>updField(i,'readOnly',e.target.checked)}/> Read-only</label>
+            <label className="pill"><input type="checkbox" checked={f.filterable||false} onChange={e=>updField(i,'filterable',e.target.checked)}/> Candidato a filtro</label>
+            <label className="pill"><input type="checkbox" checked={f.sortable||false} onChange={e=>updField(i,'sortable',e.target.checked)}/> Candidato a sort</label>
+          </div>
+        </div>))}
+        <div className="toolbar-row" style={{marginTop:12,justifyContent:'space-between'}}>
+          <button className="btn-sm btn-add" onClick={()=>addField()}>+ Campo manual</button>
+          <button className="btn-sm btn-purple" onClick={applyFieldFlagsToCrud}>Aplicar filtros/sorts marcados no CRUD</button>
+        </div>
       </div>
 
       <div className="card">
-        <h3>🔗 Relacionamentos ({relations.length})</h3>
-        {relations.length>0&&<table><thead><tr><th>Tipo</th><th>Entidade Alvo</th><th>Campo</th><th>Fetch</th><th>mappedBy</th><th>inResponse</th><th></th></tr></thead><tbody>
-        {relations.map((r,i)=>(<tr key={i}>
-          <td><select value={r.type||'ManyToOne'} onChange={e=>updRel(i,'type',e.target.value)} style={{border:'none',fontSize:12}}>
-            {['ManyToOne','OneToMany','OneToOne','ManyToMany'].map(t=><option key={t}>{t}</option>)}</select></td>
-          <td><select value={r.targetEntity||''} onChange={e=>updRel(i,'targetEntity',e.target.value)} style={{border:'none',fontSize:12}}>
-            <option value="">Selecione</option>{allNames.filter(n=>n!==entity.name).map(n=><option key={n}>{n}</option>)}</select></td>
-          <td><input value={r.fieldName||''} onChange={e=>updRel(i,'fieldName',e.target.value)} style={{border:'none',fontSize:12,width:90}} placeholder="campo"/></td>
-          <td><select value={r.fetch||'LAZY'} onChange={e=>updRel(i,'fetch',e.target.value)} style={{border:'none',fontSize:12}}><option>LAZY</option><option>EAGER</option></select></td>
-          <td><input value={r.mappedBy||''} onChange={e=>updRel(i,'mappedBy',e.target.value||undefined)} style={{border:'none',fontSize:12,width:80}} placeholder="(opcional)"/></td>
-          <td><input type="checkbox" checked={r.inResponse!==false} onChange={e=>updRel(i,'inResponse',e.target.checked)}/></td>
-          <td><button className="btn-sm btn-danger" onClick={()=>delRel(i)}>✕</button></td>
-        </tr>))}
-        </tbody></table>}
-        <button className="btn-sm btn-add" onClick={addRel} style={{marginTop:10}}>+ Relacionamento</button>
+        <div className="toolbar-row" style={{justifyContent:'space-between'}}>
+          <h3 style={{margin:0}}>🔗 Relacionamentos ({relations.length})</h3>
+          <button className="btn-sm btn-add" onClick={()=>addRel()}>+ Relacionamento</button>
+        </div>
+        <div className="hint" style={{marginTop:6}}>Use isso para montar casos como <span className="code-inline">Session → User</span>, <span className="code-inline">Product → Category</span> ou coleções <span className="code-inline">Order → Items</span>.</div>
+        {relations.length===0 && <div className="empty-state">Nenhum relacionamento ainda.</div>}
+        {relations.map((r,i)=>{
+          const targetFields=targetFieldsFor(r.targetEntity);
+          return (<div key={i} className="mini-card" style={{marginTop:12}}>
+            <div className="toolbar-row" style={{justifyContent:'space-between'}}>
+              <strong>{r.fieldName || 'Relacionamento'} {r.targetEntity ? `→ ${r.targetEntity}` : ''}</strong>
+              <button className="btn-sm btn-danger" onClick={()=>delRel(i)}>Excluir</button>
+            </div>
+            <div className="form-grid" style={{marginTop:8}}>
+              <div className="form-group"><label>Tipo</label><select value={r.type||'ManyToOne'} onChange={e=>{const type=e.target.value; updRel(i,'type',type); if(!r.fieldName && r.targetEntity) updRel(i,'fieldName',relationNameSuggestion(r.targetEntity,type));}}>{['ManyToOne','OneToMany','OneToOne','ManyToMany'].map(t=><option key={t}>{t}</option>)}</select></div>
+              <div className="form-group"><label>Entidade alvo</label><select value={r.targetEntity||''} onChange={e=>{const target=e.target.value; updRel(i,'targetEntity',target); if(!r.fieldName) updRel(i,'fieldName',relationNameSuggestion(target,r.type));}}><option value="">Selecione</option>{allNames.filter(n=>n!==entity.name).map(n=><option key={n}>{n}</option>)}</select></div>
+              <div className="form-group"><label>Nome do campo</label><input value={r.fieldName||''} onChange={e=>updRel(i,'fieldName',e.target.value)} placeholder="category, user, sessions"/></div>
+              <div className="form-group"><label>Join column</label><input value={r.joinColumn||''} onChange={e=>updRel(i,'joinColumn',e.target.value||undefined)} placeholder="(auto: field_id)"/></div>
+              <div className="form-group"><label>Fetch</label><select value={r.fetch||'LAZY'} onChange={e=>updRel(i,'fetch',e.target.value)}><option>LAZY</option><option>EAGER</option></select></div>
+              <div className="form-group"><label>Cascade</label><input value={r.cascade||''} onChange={e=>updRel(i,'cascade',e.target.value)} placeholder="MERGE,PERSIST"/></div>
+              <div className="form-group"><label>mappedBy</label><input value={r.mappedBy||''} onChange={e=>updRel(i,'mappedBy',e.target.value||undefined)} placeholder="para OneToMany"/></div>
+              <div className="form-group"><label>Campo display</label><select value={r.displayField||''} onChange={e=>updRel(i,'displayField',e.target.value||undefined)}><option value="">(auto/id)</option>{targetFields.map(f=><option key={f.name} value={f.name}>{f.name} ({f.type})</option>)}</select></div>
+            </div>
+            <div className="pill-row" style={{marginTop:8}}>
+              <label className="pill"><input type="checkbox" checked={r.required||false} onChange={e=>updRel(i,'required',e.target.checked)}/> Obrigatório</label>
+              <label className="pill"><input type="checkbox" checked={r.inRequest!==false} onChange={e=>updRel(i,'inRequest',e.target.checked)}/> Request DTO</label>
+              <label className="pill"><input type="checkbox" checked={r.inResponse!==false} onChange={e=>updRel(i,'inResponse',e.target.checked)}/> Response DTO</label>
+              <label className="pill"><input type="checkbox" checked={r.orphanRemoval||false} onChange={e=>updRel(i,'orphanRemoval',e.target.checked)}/> Orphan removal</label>
+            </div>
+            {r.targetEntity && <div className="hint" style={{marginTop:8}}>Sugestão de filtro relacionado: <span className="code-inline">{r.fieldName || relationNameSuggestion(r.targetEntity,r.type)}.{r.displayField || targetFields[0]?.name || 'id'}</span></div>}
+          </div>);
+        })}
       </div>
 
+      <CrudAdvancedSection entity={entity} allEntities={allEntities} onChange={onChange}/>
+
       <div className="card">
-        <h3>🔍 Filtros ({filters.length})</h3>
+        <h3>🔍 Filtros legados ({filters.length})</h3>
+        <div className="hint">Para filtros novos, prefira o CRUD avançado acima. Este bloco mantém compatibilidade com <span className="code-inline">entity.filters</span>.</div>
         {filters.length>0&&<table><thead><tr><th>Nome</th><th>Tipo</th><th>Label</th><th>Operador</th><th>Target Field</th><th>Enum Values</th><th></th></tr></thead><tbody>
         {filters.map((f,i)=>(<tr key={i}>
           <td><input value={f.name||''} onChange={e=>updFilter(i,'name',e.target.value)} style={{border:'none',fontSize:12,width:90}} placeholder="campo"/></td>
@@ -692,11 +1052,11 @@
           <td><input value={f.label||''} onChange={e=>updFilter(i,'label',e.target.value)} style={{border:'none',fontSize:12,width:80}} placeholder="label"/></td>
           <td><select value={f.operator||''} onChange={e=>updFilter(i,'operator',e.target.value||undefined)} style={{border:'none',fontSize:11}}><option value="">(auto)</option>{operators.map(o=><option key={o}>{o}</option>)}</select></td>
           <td><input value={f.targetField||''} onChange={e=>updFilter(i,'targetField',e.target.value||undefined)} style={{border:'none',fontSize:12,width:75}} placeholder="(inferido)"/></td>
-          <td>{f.type==='Enum'&&<input value={(f.enumValues||[]).join(',')} onChange={e=>updFilter(i,'enumValues',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} style={{fontSize:11,border:'1px solid #e2e8f0',borderRadius:4,padding:'2px 4px',width:90}} placeholder="VAL1,VAL2"/>}</td>
+          <td>{f.type==='Enum'&&<input value={(f.enumValues||[]).join(',')} onChange={e=>updFilter(i,'enumValues',parseCsv(e.target.value))} style={{fontSize:11,border:'1px solid #e2e8f0',borderRadius:4,padding:'2px 4px',width:90}} placeholder="VAL1,VAL2"/>}</td>
           <td><button className="btn-sm btn-danger" onClick={()=>delFilter(i)}>✕</button></td>
         </tr>))}
         </tbody></table>}
-        <button className="btn-sm btn-add" onClick={addFilter} style={{marginTop:10}}>+ Filtro</button>
+        <button className="btn-sm btn-add" onClick={addFilter} style={{marginTop:10}}>+ Filtro legado</button>
       </div>
 
       <div className="card">
@@ -709,8 +1069,8 @@
               <label style={{fontSize:12,display:'flex',alignItems:'center',gap:4}}><input type="checkbox" checked={(ei.formats||[]).includes('excel')} onChange={e=>{const f=ei.formats||[];setEi('formats',e.target.checked?[...f,'excel']:f.filter(x=>x!=='excel'));}}/> Excel</label>
             </div>
           </div>
-          <div className="form-group"><label>Campos Export</label><input value={(ei.exportFields||[]).join(', ')} onChange={e=>setEi('exportFields',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} placeholder="name, price, stock"/></div>
-          <div className="form-group"><label>Campos Import</label><input value={(ei.importFields||[]).join(', ')} onChange={e=>setEi('importFields',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} placeholder="(todos)"/></div>
+          <div className="form-group"><label>Campos Export</label><input value={(ei.exportFields||[]).join(', ')} onChange={e=>setEi('exportFields',parseCsv(e.target.value))} placeholder="name, price, stock"/></div>
+          <div className="form-group"><label>Campos Import</label><input value={(ei.importFields||[]).join(', ')} onChange={e=>setEi('importFields',parseCsv(e.target.value))} placeholder="(todos)"/></div>
         </div>
       </div>
     </div>);
@@ -742,7 +1102,7 @@
   function ActionsPage({entity,onChange}) {
     const actions=entity.actions||[];
     const set=(a)=>onChange({...entity,actions:a});
-    const add=()=>set([...actions,{name:'',httpMethod:'POST',apiPath:'',requiresId:true,request:[],response:[],roles:[]}]);
+    const add=()=>set([...actions,{name:'',httpMethod:'POST',apiPath:'',requiresId:true,request:[],response:[]}]);
     const del=(i)=>set(actions.filter((_,idx)=>idx!==i));
     const upd=(i,k,v)=>{const u=[...actions];u[i]={...u[i],[k]:v};set(u);};
     const methods=['GET','POST','PUT','PATCH','DELETE'];
@@ -763,7 +1123,6 @@
           <div className="form-group"><label>HTTP Method</label><select value={a.httpMethod||''} onChange={e=>upd(i,'httpMethod',e.target.value||null)}><option value="">(nenhum)</option>{methods.map(m=><option key={m}>{m}</option>)}</select></div>
           <div className="form-group"><label>API Path</label><input value={a.apiPath||''} onChange={e=>upd(i,'apiPath',e.target.value)} placeholder="/{id}/activate"/></div>
           <div className="form-group"><label>Descrição</label><input value={a.description||''} onChange={e=>upd(i,'description',e.target.value)}/></div>
-          <div className="form-group"><label>Roles</label><input value={(a.roles||[]).join(', ')} onChange={e=>upd(i,'roles',e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} placeholder="ADMIN"/></div>
           <div className="form-group checkbox-group"><input type="checkbox" checked={a.requiresId!==false} onChange={e=>upd(i,'requiresId',e.target.checked)} id={`rid${i}`}/><label htmlFor={`rid${i}`}>Requer ID</label></div>
           <div className="form-group checkbox-group"><input type="checkbox" checked={a.scheduled||false} onChange={e=>upd(i,'scheduled',e.target.checked)} id={`sch${i}`}/><label htmlFor={`sch${i}`}>Scheduled</label></div>
           {a.scheduled&&<div className="form-group"><label>Cron</label><input value={a.scheduledCron||''} onChange={e=>upd(i,'scheduledCron',e.target.value)} placeholder="0 0 3 * * *"/></div>}
@@ -908,6 +1267,212 @@
     </div>);
   }
 
+
+  // ════════════════════════════════════════
+  // Templates Page
+  // ════════════════════════════════════════
+  function templatePresets(project={}) {
+    const base = project.basePackage || 'com.myapp';
+    return [
+      {
+        name:'Policy por entidade', scope:'entity', enabled:true,
+        path:'{{packagePath}}/policy/{{EntityName}}Policy.java',
+        content:`package ${base}.policy;
+
+import org.springframework.stereotype.Component;
+
+@Component
+public class {{EntityName}}Policy {
+
+    public boolean canCreate() {
+        return true;
+    }
+
+    public boolean canUpdate(Long id) {
+        return id != null;
+    }
+
+    public boolean canDelete(Long id) {
+        return id != null;
+    }
+}
+`
+      },
+      {
+        name:'README de entidade', scope:'entity', enabled:true,
+        path:'docs/entities/{{entityKebab}}.md',
+        content:`# {{EntityName}}
+
+Entidade gerada pelo Spring Forge.
+
+- Nome técnico: \`{{entityName}}\`
+- Endpoint sugerido: \`/api/v1/{{entityPluralKebab}}\`
+`
+      },
+      {
+        name:'README global', scope:'global', enabled:true,
+        path:'docs/generated-overview.md',
+        content:`# {{projectName}}
+
+Projeto gerado com Spring Forge.
+
+Base package: \`{{basePackage}}\`
+`
+      }
+    ];
+  }
+
+  function renderTemplatePreview(tpl, forge, entity) {
+    const safe = v => v || '';
+    const entityName = entity?.name || 'Product';
+    const camel = entityName.charAt(0).toLowerCase() + entityName.slice(1);
+    const snake = entityName.replace(/([a-z0-9])([A-Z])/g,'$1_$2').toLowerCase();
+    const kebab = snake.replace(/_/g,'-');
+    const plural = camel.endsWith('y') ? camel.slice(0,-1)+'ies' : camel + 's';
+    const map = {
+      '{{projectName}}': safe(forge?.project?.name || 'MyApp'), '{{basePackage}}': safe(forge?.project?.basePackage || 'com.myapp'),
+      '{{packagePath}}': safe(forge?.project?.basePackage || 'com.myapp').replace(/\./g,'/'), '{{EntityName}}': entityName,
+      '{{entityName}}': camel, '{{entitySnake}}': snake, '{{entityKebab}}': kebab, '{{EntityPlural}}': plural.charAt(0).toUpperCase()+plural.slice(1),
+      '{{entityPlural}}': plural, '{{entityPluralKebab}}': plural.replace(/([a-z0-9])([A-Z])/g,'$1-$2').toLowerCase()
+    };
+    const apply = (x) => Object.entries(map).reduce((acc,[k,v]) => acc.split(k).join(v), x || '');
+    return {path: apply(tpl.path), content: apply(tpl.content)};
+  }
+
+  function TemplatesPage({templates, forge, onChange}) {
+    const defaults={enabled:false,templateDir:'.spring-forge/templates',outputDir:'',suffix:'.tpl',overwrite:true,visualTemplates:[]};
+    const tpl={...defaults,...(templates||{})};
+    const visualTemplates=tpl.visualTemplates||[];
+    const [selected,setSelected]=useState(0);
+    const previewEntity=(forge.entities||[])[0] || {name:'Product'};
+    const current=visualTemplates[selected] || null;
+    const placeholders=['{{projectName}}','{{basePackage}}','{{packagePath}}','{{EntityName}}','{{entityName}}','{{entitySnake}}','{{entityKebab}}','{{EntityPlural}}','{{entityPlural}}','{{entityPluralKebab}}'];
+    const set=(k,v)=>onChange({...tpl,[k]:v});
+    const setVisual=(list)=>onChange({...tpl,visualTemplates:list});
+    const updateTemplate=(k,v)=>{const u=[...visualTemplates];u[selected]={...u[selected],[k]:v};setVisual(u);};
+    const addTemplate=(preset)=>{const u=[...visualTemplates,{name:'Novo template',scope:'entity',enabled:true,path:'{{packagePath}}/{{EntityName}}Extra.java',content:'package {{basePackage}};\n\npublic class {{EntityName}}Extra {\n}\n',...(preset||{})}];setVisual(u);setSelected(u.length-1);};
+    const removeTemplate=(idx)=>{const u=visualTemplates.filter((_,i)=>i!==idx);setVisual(u);setSelected(Math.max(0,idx-1));};
+    const addPresets=()=>{setVisual([...visualTemplates,...templatePresets(forge.project)]);setSelected(visualTemplates.length);};
+    const preview=current?renderTemplatePreview(current,forge,previewEntity):null;
+
+    return (<div>
+      <div className="page-title" style={{justifyContent:'space-between'}}>
+        <span>🧩 Templates visuais</span>
+        <div className="toolbar-row">
+          <button className="btn-sm btn-add" onClick={()=>addTemplate()}>+ Template</button>
+          <button className="btn-sm btn-purple" onClick={addPresets}>Adicionar presets</button>
+        </div>
+      </div>
+      <div className="card">
+        <h3>Configuração</h3>
+        <div className="form-grid">
+          <div className="form-group checkbox-group"><input type="checkbox" checked={tpl.enabled||false} onChange={e=>set('enabled',e.target.checked)} id="tpl-enabled"/><label htmlFor="tpl-enabled">Ativar templates</label></div>
+          <div className="form-group"><label>Template dir físico</label><input value={tpl.templateDir||'.spring-forge/templates'} onChange={e=>set('templateDir',e.target.value)} placeholder=".spring-forge/templates"/><div className="hint">Continua aceitando templates salvos em disco.</div></div>
+          <div className="form-group"><label>Output dir</label><input value={tpl.outputDir||''} onChange={e=>set('outputDir',e.target.value)} placeholder="(usa outputDir padrão)"/></div>
+          <div className="form-group"><label>Sufixo templates em disco</label><input value={tpl.suffix||'.tpl'} onChange={e=>set('suffix',e.target.value)} placeholder=".tpl"/></div>
+          <div className="form-group checkbox-group"><input type="checkbox" checked={tpl.overwrite!==false} onChange={e=>set('overwrite',e.target.checked)} id="tpl-over"/><label htmlFor="tpl-over">Sobrescrever saída</label></div>
+        </div>
+      </div>
+      <div className="split-grid">
+        <div className="card">
+          <h3>📚 Templates configurados ({visualTemplates.length})</h3>
+          {visualTemplates.length===0 && <div className="empty-state" style={{padding:24}}><h3>Nenhum template visual</h3><p>Crie um template ou use presets para gerar arquivos extras sem editar JSON.</p></div>}
+          {visualTemplates.map((t,i)=><div key={i} className={`mini-card ${selected===i?'active':''}`} onClick={()=>setSelected(i)} style={{cursor:'pointer'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <input type="checkbox" checked={t.enabled!==false} onChange={e=>{e.stopPropagation(); const u=[...visualTemplates];u[i]={...u[i],enabled:e.target.checked};setVisual(u);}}/>
+              <strong style={{fontSize:13,flex:1}}>{t.name||'Sem nome'}</strong>
+              <span className="rel-tag">{t.scope||'entity'}</span>
+              <button className="btn-sm btn-danger" onClick={(e)=>{e.stopPropagation();removeTemplate(i);}}>×</button>
+            </div>
+            <div className="hint template-path">{t.path}</div>
+          </div>)}
+        </div>
+        <div className="card">
+          <h3>✍️ Editor visual</h3>
+          {!current && <div className="empty-state" style={{padding:32}}><h3>Selecione ou crie um template</h3></div>}
+          {current && <>
+            <div className="form-grid" style={{gridTemplateColumns:'1fr 120px 110px'}}>
+              <div className="form-group"><label>Nome</label><input value={current.name||''} onChange={e=>updateTemplate('name',e.target.value)} placeholder="Policy por entidade"/></div>
+              <div className="form-group"><label>Escopo</label><select value={current.scope||'entity'} onChange={e=>updateTemplate('scope',e.target.value)}><option value="entity">Por entidade</option><option value="global">Global</option></select></div>
+              <div className="form-group checkbox-group" style={{marginTop:20}}><input type="checkbox" checked={current.enabled!==false} onChange={e=>updateTemplate('enabled',e.target.checked)} id="tpl-current-enabled"/><label htmlFor="tpl-current-enabled">Ativo</label></div>
+            </div>
+            <div className="form-group" style={{marginTop:10}}><label>Caminho de saída</label><input className="template-path" value={current.path||''} onChange={e=>updateTemplate('path',e.target.value)} placeholder="{{packagePath}}/policy/{{EntityName}}Policy.java"/></div>
+            <div className="pill-row">{placeholders.map(x=><button key={x} className="pill" onClick={()=>updateTemplate('content',(current.content||'')+x)}>{x}</button>)}</div>
+            <div className="form-group" style={{marginTop:10}}><label>Conteúdo</label><textarea className="template-editor" value={current.content||''} onChange={e=>updateTemplate('content',e.target.value)} placeholder="package {{basePackage}};"/></div>
+            <div className="hint">Preview abaixo usa a primeira entidade do projeto: <span className="code-inline">{previewEntity.name}</span>.</div>
+            <div style={{marginTop:10}}><strong style={{fontSize:12}}>Arquivo:</strong><div className="copyable">{preview?.path}</div></div>
+            <div style={{marginTop:10}}><strong style={{fontSize:12}}>Conteúdo renderizado:</strong><div className="copyable">{preview?.content}</div></div>
+          </>}
+        </div>
+      </div>
+      <div className="card">
+        <h3>📌 Placeholders disponíveis</h3>
+        <div className="pill-row">{placeholders.map(x=><span key={x} className="pill">{x}</span>)}</div>
+      </div>
+    </div>);
+  }
+
+  // ════════════════════════════════════════
+  // Frontend Page
+  // ════════════════════════════════════════
+  function FrontendPage({project,onChange}) {
+    const defaults={enabled:false,framework:'react',ui:'mui',state:'redux-toolkit',forms:'react-hook-form',validation:'zod',apiClient:true,authPages:true,protectedRoutes:true,appShell:true,filterPanel:true,tableSorting:true,confirmDialogs:true,notifications:true,darkMode:false};
+    const frontend={...defaults,...(project.frontend||{})};
+    const setFrontend=(k,v)=>onChange({...project, generateFrontend:k==='enabled'?v:project.generateFrontend, frontend:{...frontend,[k]:v}});
+    const featureLabels={apiClient:'API client',appShell:'App shell/Menu/Header',filterPanel:'Painel de filtros',tableSorting:'Ordenação em tabela',confirmDialogs:'Confirm dialogs',notifications:'Notificações/Snackbar',darkMode:'Dark mode'};
+    return (<div>
+      <div className="page-title">🎨 Frontend gerado</div>
+      <div className="card">
+        <h3>Stack</h3>
+        <div className="form-grid">
+          <div className="form-group checkbox-group"><input type="checkbox" checked={project.generateFrontend||frontend.enabled||false} onChange={e=>setFrontend('enabled',e.target.checked)} id="fe-enabled"/><label htmlFor="fe-enabled">Gerar frontend</label></div>
+          <div className="form-group"><label>Frontend dir</label><input value={project.frontendDir||'frontend/src'} onChange={e=>onChange({...project,frontendDir:e.target.value})}/></div>
+          <div className="form-group"><label>Framework</label><select value={frontend.framework||'react'} onChange={e=>setFrontend('framework',e.target.value)}><option value="react">React</option></select></div>
+          <div className="form-group"><label>UI</label><select value={frontend.ui||'mui'} onChange={e=>setFrontend('ui',e.target.value)}><option value="mui">MUI</option></select></div>
+          <div className="form-group"><label>State</label><select value={frontend.state||'redux-toolkit'} onChange={e=>setFrontend('state',e.target.value)}><option value="redux-toolkit">Redux Toolkit</option></select></div>
+          <div className="form-group"><label>Forms</label><select value={frontend.forms||'react-hook-form'} onChange={e=>setFrontend('forms',e.target.value)}><option value="react-hook-form">React Hook Form</option></select></div>
+          <div className="form-group"><label>Validation</label><select value={frontend.validation||'zod'} onChange={e=>setFrontend('validation',e.target.value)}><option value="zod">Zod</option></select></div>
+        </div>
+      </div>
+      <div className="card">
+        <h3>✨ Melhorias geradas</h3>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(210px,1fr))',gap:6}}>
+          {Object.entries(featureLabels).map(([k,label])=>(<div key={k} className="form-group checkbox-group"><input type="checkbox" checked={frontend[k]!==false} onChange={e=>setFrontend(k,e.target.checked)} id={`fe-${k}`}/><label htmlFor={`fe-${k}`}>{label}</label></div>))}
+        </div>
+        <div className="hint">Os filtros e ordenações do frontend vêm dos campos configurados em <span className="code-inline">entity.crud.filterable</span> e <span className="code-inline">entity.crud.sortable</span>.</div>
+      </div>
+    </div>);
+  }
+
+
+
+  function ValidationPanel({report,onClose}) {
+    if(!report) return null;
+    const issues=report.issues||[];
+    const valid=report.valid && (report.errorCount||0)===0;
+    const icon=valid?'✅':'❌';
+    return <div className={`validation-panel ${valid?'valid':'invalid'}`}>
+      <div className="validation-summary">
+        <h3>{icon} Validação do forge.json</h3>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <span className="badge">{report.errorCount||0} erro(s)</span>
+          <span className="badge warn">{report.warningCount||0} aviso(s)</span>
+          <button className="btn-sm btn-light" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+      <div className="hint" style={{marginBottom:8}}>{report.message}</div>
+      {issues.length===0 && <div className="hint">Nenhum problema encontrado. Você pode gerar o código com segurança.</div>}
+      {issues.map((it,i)=><div key={i} className={`validation-issue ${it.severity||'error'}`}>
+        <div className="issue-head">
+          <div className="issue-title">{it.severity==='warning'?'⚠️':'❌'} {it.title||it.code}</div>
+          <div className="issue-meta">{it.path||'forge.json'}{it.line?` · linha ${it.line}${it.column?`, col ${it.column}`:''}`:''}</div>
+        </div>
+        <p><b>Problema:</b> {it.message}</p>
+        {it.fix && <div className="fix"><p><b>Como corrigir:</b> {it.fix}</p>{it.example && <p><b>Exemplo:</b> <span className="code-inline">{it.example}</span></p>}</div>}
+      </div>)}
+    </div>;
+  }
+
   // ════════════════════════════════════════
   // Main App
   // ════════════════════════════════════════
@@ -918,6 +1483,7 @@
     const [showGenModal,setShowGenModal]=useState(false);
     const [previewEntity,setPreviewEntity]=useState(null);
     const [previewOpen,setPreviewOpen]=useState(false);
+    const [validationReport,setValidationReport]=useState(null);
 
     const show=(msg,type='success')=>setToast({message:msg,type});
 
@@ -928,7 +1494,7 @@
     if(!forge) return null;
 
     const save=async()=>{const r=await api.saveForge(forge);show(r.success?'Salvo!':r.error,r.success?'success':'error');};
-    const validate=async()=>{const r=await api.validate(forge);show(r.valid?r.message:r.message,r.valid?'success':'error');};
+    const validate=async()=>{const r=await api.validate(forge);setValidationReport(r);show(r.message,r.valid?'success':'error');};
     const openGenerate=()=>setShowGenModal(true);
     const generate=async(selected)=>{
       setShowGenModal(false);show('Gerando...','info');await save();
@@ -942,7 +1508,7 @@
     const addEntity=()=>{
       const name=prompt('Nome da entidade (PascalCase):');
       if(!name) return;
-      setForge({...forge,entities:[...forge.entities,{name,fields:[],relations:[],actions:[],queues:[],auditable:true,softDelete:false}]});
+      setForge({...forge,entities:[...forge.entities,{name,fields:[],relations:[],actions:[],queues:[],auditable:true,softDelete:false,crud:defaultCrud()}]});
       setPage(`entity:${forge.entities.length}`);
     };
 
@@ -961,10 +1527,35 @@
     return (
             <div className="app">
               <div className="sidebar">
-                <div className="logo"><h1>⚒️ Spring Forge</h1><span>v1.0</span></div>
+                <div className="logo">
+                  <svg viewBox="0 0 260 210" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'38px',height:'auto',flexShrink:0,filter:'drop-shadow(0 2px 8px rgba(66,165,245,.5))'}}>
+                    <defs>
+                      <linearGradient id="lgM" x1="10%" y1="0%" x2="90%" y2="100%"><stop offset="0%" stopColor="#42A5F5"/><stop offset="100%" stopColor="#1565C0"/></linearGradient>
+                      <linearGradient id="lgL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#64B5F6"/><stop offset="100%" stopColor="#1976D2"/></linearGradient>
+                    </defs>
+                    <rect x="52" y="105" width="156" height="36" rx="6" fill="url(#lgM)"/>
+                    <path d="M176 105 Q206 103 210 118 L190 118 Z" fill="url(#lgM)"/>
+                    <path d="M84 105 Q64 103 62 114 L80 115 Z" fill="url(#lgM)"/>
+                    <rect x="98" y="141" width="64" height="18" rx="4" fill="url(#lgM)"/>
+                    <rect x="80" y="159" width="100" height="18" rx="6" fill="url(#lgM)"/>
+                    <path d="M138 102 C150 80 172 52 192 28 C200 52 192 76 178 90 C166 100 138 102 138 102 Z" fill="url(#lgL)"/>
+                    <path d="M130 100 C118 78 108 52 104 28 C120 38 131 62 135 80 C137 90 130 100 130 100 Z" fill="url(#lgM)"/>
+                    <line x1="133" y1="105" x2="133" y2="159" stroke="url(#lgL)" strokeWidth="3" strokeLinecap="round"/>
+                  </svg>
+                  <div>
+                    <h1 style={{fontSize:'14px',fontWeight:800,letterSpacing:'-.3px',lineHeight:1.1}}>
+                      <span style={{color:'#42a5f5'}}>spring</span>{' '}
+                      <span style={{color:'#fff'}}>forge</span>
+                    </h1>
+                    <span style={{fontSize:'9px',color:'#5b8fb9',letterSpacing:'1.5px',textTransform:'uppercase'}}>Maven Plugin</span>
+                  </div>
+                  <span style={{marginLeft:'auto',fontSize:'10px',background:'#1976d2',padding:'2px 6px',borderRadius:'4px',flexShrink:0}}>v1.1</span>
+                </div>
 
                 <div className="nav-section">Geral</div>
                 <div className={`nav-item ${page==='project'?'active':''}`} onClick={()=>setPage('project')}><span className="icon">⚙️</span>Projeto</div>
+                <div className={`nav-item ${page==='frontend'?'active':''}`} onClick={()=>setPage('frontend')}><span className="icon">🎨</span>Frontend</div>
+                <div className={`nav-item ${page==='templates'?'active':''}`} onClick={()=>setPage('templates')}><span className="icon">🧩</span>Templates</div>
                 <div className={`nav-item ${page==='diagram'?'active':''}`} onClick={()=>setPage('diagram')}><span className="icon">🗺️</span>Diagrama ER</div>
                 <div className={`nav-item ${page==='reverse'?'active':''}`} onClick={()=>setPage('reverse')}><span className="icon">🔀</span>Reverse DB</div>
                 <div className={`nav-item ${page==='json'?'active':''}`} onClick={()=>setPage('json')}><span className="icon">📄</span>JSON</div>
@@ -994,12 +1585,15 @@
                 </div>
               </div>
 
-              <div className="main" style={{marginRight:previewOpen?600:0,transition:'margin-right .3s'}}>
-                {page==='project'   && <ProjectPage project={forge.project} onChange={p=>setForge({...forge,project:p})}/>}
+              <div className={`main ${previewOpen?'preview-wide':''}`} style={{transition:'margin-right .3s'}}>
+                <ValidationPanel report={validationReport} onClose={()=>setValidationReport(null)}/>
+                {page==='project'   && <ProjectPage forge={forge} project={forge.project} onChange={p=>setForge({...forge,project:p})}/>}
+                {page==='frontend'  && <FrontendPage project={forge.project} onChange={p=>setForge({...forge,project:p})}/>}
+                {page==='templates' && <TemplatesPage templates={forge.project.templates} forge={forge} onChange={t=>setForge({...forge,project:{...forge.project,templates:t}})}/>}
                 {page==='diagram'   && <DiagramPage forge={forge} onChange={setForge} showPreview={showPreview}/>}
                 {page==='reverse'   && <ReversePage onResult={f=>{setForge(f);setPage('project');}} show={show}/>}
                 {page==='json'      && <JsonPage forge={forge} setForge={setForge}/>}
-                {page.startsWith('entity:')  && currentEntity && <EntityPage entity={currentEntity} allNames={entityNames} onChange={e=>updEntity(selectedIdx,e)} showPreview={showPreview}/>}
+                {page.startsWith('entity:')  && currentEntity && <EntityPage entity={currentEntity} allNames={entityNames} allEntities={forge.entities} onChange={e=>updEntity(selectedIdx,e)} showPreview={showPreview}/>}
                 {page.startsWith('actions:') && currentEntity && <ActionsPage entity={currentEntity} onChange={e=>updEntity(selectedIdx,e)}/>}
                 {page.startsWith('queues:')  && currentEntity && <QueuesPage  entity={currentEntity} onChange={e=>updEntity(selectedIdx,e)}/>}
                 {page.startsWith('entity:')  && currentEntity && (
@@ -1010,7 +1604,7 @@
                 )}
               </div>
 
-              <PreviewDrawer open={previewOpen} entityName={previewEntity} onClose={()=>setPreviewOpen(false)}/>
+              <PreviewDrawer open={previewOpen} entityName={previewEntity} forge={forge} onClose={()=>setPreviewOpen(false)}/>
 
               {toast && <Toast message={toast.message} type={toast.type} onClose={()=>setToast(null)}/>}
               {showGenModal && <GenerateModal entities={forge.entities} onGenerate={generate} onClose={()=>setShowGenModal(false)}/>}

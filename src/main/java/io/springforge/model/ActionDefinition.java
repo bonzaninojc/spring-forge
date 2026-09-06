@@ -1,8 +1,9 @@
 package io.springforge.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * Define uma action customizada de uma entidade.
@@ -30,7 +31,7 @@ import java.util.List;
  *   ]
  * }
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class ActionDefinition {
 
     /** Nome da action em camelCase, ex: "activate", "transferStock", "generateReport" */
@@ -106,13 +107,6 @@ public class ActionDefinition {
     private java.util.List<String> openApiTags = new java.util.ArrayList<>();
 
     /**
-     * Roles necessárias para executar esta action (RBAC).
-     * Sobrescreve as roles da entidade para este endpoint específico.
-     * Ex: ["ADMIN", "MANAGER"]
-     */
-    private java.util.List<String> roles = new java.util.ArrayList<>();
-
-    /**
      * Códigos de resposta HTTP adicionais para OpenAPI.
      * Ex: [{"code": 400, "description": "Estoque insuficiente"}]
      */
@@ -159,9 +153,6 @@ public class ActionDefinition {
     public java.util.List<String> getOpenApiTags() { return openApiTags; }
     public void setOpenApiTags(java.util.List<String> openApiTags) { this.openApiTags = openApiTags; }
 
-    public java.util.List<String> getRoles() { return roles; }
-    public void setRoles(java.util.List<String> roles) { this.roles = roles; }
-
     public java.util.List<OpenApiResponse> getOpenApiResponses() { return openApiResponses; }
     public void setOpenApiResponses(java.util.List<OpenApiResponse> openApiResponses) { this.openApiResponses = openApiResponses; }
 
@@ -172,7 +163,7 @@ public class ActionDefinition {
     // --- Helpers ---
 
     /** Inner class para respostas OpenAPI customizadas */
-    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = false)
     public static class OpenApiResponse {
         private int code;
         private String description;

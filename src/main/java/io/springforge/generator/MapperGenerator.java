@@ -18,20 +18,20 @@ public class MapperGenerator extends AbstractGenerator {
         if (!entity.shouldGenerate("mapper")) return;
         if (!def.getProject().isGenerateMappers()) return;
 
-        String pkg  = mapperPkg(def);
+        String pkg  = mapperPkg(def, entity);
         String name = entity.getName();
 
         CodeWriter w = new CodeWriter();
 
         w.imp("org.mapstruct.*")
-         .imp(entityPkg(def) + "." + name)
-         .imp(dtoPkg(def)    + "." + name + "RequestDTO")
-         .imp(dtoPkg(def)    + "." + name + "ResponseDTO");
+         .imp(entityPkg(def, entity) + "." + name)
+         .imp(dtoPkg(def, entity)    + "." + name + "RequestDTO")
+         .imp(dtoPkg(def, entity)    + "." + name + "ResponseDTO");
 
         // Import dos Enums usados nas expressions
         for (FieldDefinition f : entity.getFields()) {
             if ("Enum".equalsIgnoreCase(f.getType())) {
-                w.imp(entityPkg(def) + "." + enumName(entity, f));
+                w.imp(entityPkg(def, entity) + "." + enumName(entity, f));
             }
         }
 
@@ -44,7 +44,13 @@ public class MapperGenerator extends AbstractGenerator {
          .blank();
         w.indent();
 
-        // toResponseDTO — mapeamentos especiais para Enum
+        // toResponseDTO — mapeamentos especiais para Enum e relações ManyToOne
+        for (io.springforge.model.RelationDefinition r : entity.getRelations()) {
+            if ("ManyToOne".equals(r.getType()) && r.isInResponse()) {
+                String cap = NamingUtils.toPascalCase(r.getFieldName());
+                w.line("@Mapping(target = \"" + r.getFieldName() + "Id\", expression = \"java(entity.get" + cap + "() != null ? entity.get" + cap + "().getId() : null)\")");
+            }
+        }
         boolean hasEnumResponse = entity.getFields().stream()
             .anyMatch(f -> "Enum".equalsIgnoreCase(f.getType()) && f.isInResponse());
 
@@ -61,6 +67,11 @@ public class MapperGenerator extends AbstractGenerator {
          .blank();
 
         // toEntity
+        for (io.springforge.model.RelationDefinition r : entity.getRelations()) {
+            if ("ManyToOne".equals(r.getType())) {
+                w.line("@Mapping(target = \"" + r.getFieldName() + "\", ignore = true)");
+            }
+        }
         boolean hasEnumRequest = entity.getFields().stream()
             .anyMatch(f -> "Enum".equalsIgnoreCase(f.getType()) && f.isInRequest());
 
@@ -78,6 +89,11 @@ public class MapperGenerator extends AbstractGenerator {
          .blank();
 
         // updateEntityFromDTO
+        for (io.springforge.model.RelationDefinition r : entity.getRelations()) {
+            if ("ManyToOne".equals(r.getType())) {
+                w.line("@Mapping(target = \"" + r.getFieldName() + "\", ignore = true)");
+            }
+        }
         w.line("@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)")
          .line("void updateEntityFromDTO(" + name + "RequestDTO dto, @MappingTarget " + name + " entity);")
          .blank();

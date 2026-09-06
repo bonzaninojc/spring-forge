@@ -13,7 +13,8 @@ public class ExceptionGenerator extends AbstractGenerator {
 
     @Override
     public void generate(ForgeDefinition def, EntityDefinition entity, File outDir) throws MojoExecutionException {
-        String pkg  = exceptionPkg(def);
+        String pkg  = exceptionPkg(def, entity);
+        String handlerPkg = def.getProject().getBasePackage() + ".exception";
         String name = entity.getName();
 
         // NotFoundException por entidade
@@ -23,9 +24,9 @@ public class ExceptionGenerator extends AbstractGenerator {
         }
 
         // GlobalExceptionHandler — apenas uma vez por projeto
-        File handlerFile = javaFile(outDir, pkg, "GlobalExceptionHandler");
+        File handlerFile = javaFile(outDir, handlerPkg, "GlobalExceptionHandler");
         if (!handlerFile.exists()) {
-            writeFile(buildGlobalHandler(pkg), handlerFile, pkg);
+            writeFile(buildGlobalHandler(handlerPkg), handlerFile, handlerPkg);
         }
     }
 

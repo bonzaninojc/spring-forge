@@ -72,7 +72,11 @@ public class ForgeReverseMojo extends AbstractMojo {
         getLog().info("  Schema     : " + (schema.isBlank() ? "(default)" : schema));
         getLog().info("  Output     : " + outputFile.getPath());
 
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword)) {
+        String effectiveJdbcPassword = (jdbcPassword != null && !jdbcPassword.isBlank())
+                ? jdbcPassword
+                : System.getenv().getOrDefault("SPRING_FORGE_JDBC_PASSWORD", "");
+
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, jdbcUser, effectiveJdbcPassword)) {
             ForgeDefinition definition = reverseEngineer(conn);
 
             ObjectMapper mapper = new ObjectMapper();

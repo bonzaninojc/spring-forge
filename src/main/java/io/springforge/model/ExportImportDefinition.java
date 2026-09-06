@@ -17,7 +17,7 @@ import java.util.List;
  *   }
  * }
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class ExportImportDefinition {
 
     private boolean enabled = true;

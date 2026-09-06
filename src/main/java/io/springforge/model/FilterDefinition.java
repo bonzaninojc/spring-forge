@@ -25,7 +25,7 @@ import java.util.List;
  *
  * Se operator não for definido, usa a convenção automática existente.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class FilterDefinition {
 
     private String name;

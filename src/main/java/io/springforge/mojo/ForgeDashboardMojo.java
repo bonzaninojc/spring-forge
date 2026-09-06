@@ -17,6 +17,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -63,7 +64,7 @@ public class ForgeDashboardMojo extends AbstractMojo {
         getLog().info("  forge.json: " + inputFile.getPath());
 
         try {
-            HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+            HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
 
             // API endpoints
             server.createContext("/api/forge", this::handleForgeApi);
@@ -71,6 +72,7 @@ public class ForgeDashboardMojo extends AbstractMojo {
             server.createContext("/api/validate", this::handleValidate);
             server.createContext("/api/reverse", this::handleReverse);
             server.createContext("/api/preview", this::handlePreview);
+            server.createContext("/api/pom/preview", this::handlePomPreview);
             server.createContext("/api/heartbeat", this::handleHeartbeat);
 
             // Serve frontend estático
@@ -242,7 +244,6 @@ public class ForgeDashboardMojo extends AbstractMojo {
                     "mvn", "spring-forge:reverse", "-q",
                     "-Dforge.jdbcUrl=" + jdbcUrl,
                     "-Dforge.jdbcUser=" + jdbcUser,
-                    "-Dforge.jdbcPassword=" + jdbcPassword,
                     "-Dforge.basePackage=" + basePackage,
                     "-Dforge.output=" + inputFile.getPath()
             ));
@@ -251,6 +252,9 @@ public class ForgeDashboardMojo extends AbstractMojo {
             }
 
             ProcessBuilder pb = new ProcessBuilder(cmd);
+            if (jdbcPassword != null && !jdbcPassword.isBlank()) {
+                pb.environment().put("SPRING_FORGE_JDBC_PASSWORD", jdbcPassword);
+            }
             pb.directory(project.getBasedir());
             pb.redirectErrorStream(true);
             Process proc = pb.start();
@@ -289,14 +293,26 @@ public class ForgeDashboardMojo extends AbstractMojo {
             Files.writeString(tempFile.toPath(), body, StandardCharsets.UTF_8);
             try {
                 ForgeJsonParser parser = new ForgeJsonParser();
-                ForgeDefinition def = parser.parse(tempFile);
-                sendJson(ex, 200, Map.of(
-                        "valid", true,
-                        "entities", def.getEntities().size(),
-                        "message", "forge.json válido — " + def.getEntities().size() + " entidade(s)"
-                ));
-            } catch (MojoExecutionException e) {
-                sendJson(ex, 200, Map.of("valid", false, "message", e.getMessage()));
+                ForgeJsonParser.ValidationReport report = parser.validateFile(tempFile);
+                if (report.isValid()) {
+                    ForgeDefinition def = parser.parse(tempFile);
+                    sendJson(ex, 200, Map.of(
+                            "valid", true,
+                            "entities", def.getEntities().size(),
+                            "message", report.getMessage() + " " + def.getEntities().size() + " entidade(s).",
+                            "errorCount", report.getErrorCount(),
+                            "warningCount", report.getWarningCount(),
+                            "issues", report.getIssues()
+                    ));
+                } else {
+                    sendJson(ex, 200, Map.of(
+                            "valid", false,
+                            "message", report.getMessage(),
+                            "errorCount", report.getErrorCount(),
+                            "warningCount", report.getWarningCount(),
+                            "issues", report.getIssues()
+                    ));
+                }
             } finally {
                 tempFile.delete();
             }
@@ -322,8 +338,14 @@ public class ForgeDashboardMojo extends AbstractMojo {
             String entityName = (String) req.get("entity");
             String layer = (String) req.getOrDefault("layer", "entity");
 
-            // Carrega o forge.json atual
-            File tempForge = inputFile.exists() ? inputFile : null;
+            File tempForge = null;
+            Object forgePayload = req.get("forge");
+            if (forgePayload != null) {
+                tempForge = File.createTempFile("forge-preview-payload-", ".json");
+                Files.writeString(tempForge.toPath(), mapper.writeValueAsString(forgePayload), StandardCharsets.UTF_8);
+            } else if (inputFile.exists()) {
+                tempForge = inputFile;
+            }
             if (tempForge == null) {
                 sendJson(ex, 404, Map.of("error", "forge.json não encontrado"));
                 return;
@@ -344,21 +366,40 @@ public class ForgeDashboardMojo extends AbstractMojo {
             // Gera em diretório temporário e lê o arquivo
             Path tempDir = Files.createTempDirectory("forge-preview-");
             try {
-                AbstractGenerator gen = switch (layer) {
-                    case "entity"     -> new EntityGenerator(getLog());
-                    case "controller" -> new ControllerGenerator(getLog());
-                    case "service"    -> new ServiceGenerator(getLog());
-                    case "repository" -> new RepositoryGenerator(getLog());
-                    case "dto"        -> new DtoGenerator(getLog());
-                    case "mapper"     -> new MapperGenerator(getLog());
-                    default           -> new EntityGenerator(getLog());
-                };
-                gen.generate(def, targetEntity, tempDir.toFile());
+                List<AbstractGenerator> generators = new ArrayList<>();
+                if ("all".equals(layer)) {
+                    generators.add(new EntityGenerator(getLog()));
+                    generators.add(new RepositoryGenerator(getLog()));
+                    generators.add(new DtoGenerator(getLog()));
+                    generators.add(new MapperGenerator(getLog()));
+                    generators.add(new ServiceGenerator(getLog()));
+                    generators.add(new ControllerGenerator(getLog()));
+                    generators.add(new FilterGenerator(getLog()));
+                    generators.add(new OpenApiEnricher(getLog()));
+                    generators.add(new CustomTemplateGenerator(getLog(), project.getBasedir()));
+                } else {
+                    AbstractGenerator gen = switch (layer) {
+                        case "entity"     -> new EntityGenerator(getLog());
+                        case "controller" -> new ControllerGenerator(getLog());
+                        case "service"    -> new ServiceGenerator(getLog());
+                        case "repository" -> new RepositoryGenerator(getLog());
+                        case "dto"        -> new DtoGenerator(getLog());
+                        case "mapper"     -> new MapperGenerator(getLog());
+                        case "filter"     -> new FilterGenerator(getLog());
+                        case "openapi"    -> new OpenApiEnricher(getLog());
+                        case "templates"  -> new CustomTemplateGenerator(getLog(), project.getBasedir());
+                        default           -> new EntityGenerator(getLog());
+                    };
+                    generators.add(gen);
+                }
+                for (AbstractGenerator gen : generators) {
+                    gen.generate(def, targetEntity, tempDir.toFile());
+                }
 
-                // Coleta todos os .java gerados
+                // Coleta todos os arquivos de código/texto gerados
                 Map<String, String> files = new LinkedHashMap<>();
                 try (var walk = Files.walk(tempDir)) {
-                    walk.filter(p -> p.toString().endsWith(".java"))
+                    walk.filter(p -> Files.isRegularFile(p) && !p.toString().endsWith(".class"))
                             .sorted()
                             .forEach(p -> {
                                 try {
@@ -375,6 +416,50 @@ public class ForgeDashboardMojo extends AbstractMojo {
                 try (var walk = Files.walk(tempDir)) {
                     walk.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
                 }
+            }
+            if (tempForge != null && tempForge.getName().startsWith("forge-preview-payload-")) {
+                tempForge.delete();
+            }
+        } catch (Exception e) {
+            sendJson(ex, 500, Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro interno"));
+        }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // POST /api/pom/preview — lista dependências/properties que seriam aplicadas no pom.xml
+    // ═══════════════════════════════════════════════════════════════
+
+    private void handlePomPreview(HttpExchange ex) throws IOException {
+        setCors(ex);
+        if ("OPTIONS".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(204, -1); return; }
+        if (!"POST".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(405, -1); return; }
+
+        try {
+            String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            File tempForge = File.createTempFile("forge-pom-preview-", ".json");
+            Files.writeString(tempForge.toPath(), body, StandardCharsets.UTF_8);
+            try {
+                ForgeDefinition def = new ForgeJsonParser().parse(tempForge);
+                PomDependencyEnricher enricher = new PomDependencyEnricher(getLog());
+                List<Map<String, Object>> deps = enricher.requiredDependencies(def).stream()
+                        .map(d -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("groupId", d.groupId());
+                            m.put("artifactId", d.artifactId());
+                            m.put("version", d.version());
+                            m.put("scope", d.scope());
+                            m.put("reason", d.reason());
+                            return m;
+                        })
+                        .collect(Collectors.toList());
+                sendJson(ex, 200, Map.of(
+                        "dependencies", deps,
+                        "properties", enricher.requiredProperties(def),
+                        "autoUpdate", def.getProject().getPom() != null && def.getProject().getPom().isAutoUpdate()
+                ));
+            } finally {
+                tempForge.delete();
             }
         } catch (Exception e) {
             sendJson(ex, 500, Map.of("error", e.getMessage() != null ? e.getMessage() : "Erro interno"));
@@ -397,6 +482,9 @@ public class ForgeDashboardMojo extends AbstractMojo {
     // ═══════════════════════════════════════════════════════════════
 
     private void handleStatic(HttpExchange ex) throws IOException {
+        setCors(ex);
+        if ("OPTIONS".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(204, -1); return; }
+
         String path = ex.getRequestURI().getPath();
         if ("/".equals(path)) path = "/index.html";
 
@@ -426,8 +514,8 @@ public class ForgeDashboardMojo extends AbstractMojo {
 
     private void setCors(HttpExchange ex) {
         ex.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-        ex.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
-        ex.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type");
+        ex.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+        ex.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     }
 
     private void sendJson(HttpExchange ex, int status, Object obj) throws IOException {

@@ -18,7 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  *   "async": true
  * }
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class EventDefinition {
 
     /** Nome do evento, ex: "OrderConfirmedEvent". Default: "${ActionName}Event" */

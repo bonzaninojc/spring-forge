@@ -16,7 +16,7 @@ public class RepositoryGenerator extends AbstractGenerator {
     public void generate(ForgeDefinition def, EntityDefinition entity, File outDir) throws MojoExecutionException {
         if (!entity.shouldGenerate("repository")) return;
 
-        String pkg = repoPkg(def);
+        String pkg = repoPkg(def, entity);
         String name = entity.getName();
         CodeWriter w = new CodeWriter();
 
@@ -25,7 +25,7 @@ public class RepositoryGenerator extends AbstractGenerator {
          .imp("org.springframework.data.jpa.repository.JpaRepository")
          .imp("org.springframework.data.jpa.repository.JpaSpecificationExecutor")
          .imp("org.springframework.stereotype.Repository")
-         .imp(entityPkg(def) + "." + name);
+         .imp(entityPkg(def, entity) + "." + name);
 
         if (entity.isSoftDelete()) {
             w.imp("org.springframework.data.jpa.repository.Query")

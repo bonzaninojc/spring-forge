@@ -1,10 +1,11 @@
 package io.springforge.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.ArrayList;
 import java.util.List;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class EntityDefinition {
 
     private String name;
@@ -26,9 +27,6 @@ public class EntityDefinition {
     /** Tags OpenAPI para todos os endpoints desta entidade */
     private List<String> openApiTags = new ArrayList<>();
 
-    /** Roles necessárias para acessar os endpoints CRUD desta entidade (RBAC) */
-    private List<String> roles = new ArrayList<>();
-
     /** Filtros de busca para a entidade (endpoint POST /search) */
     private List<FilterDefinition> filters = new ArrayList<>();
 
@@ -37,6 +35,9 @@ public class EntityDefinition {
 
     /** Configuração de export/import para a entidade */
     private ExportImportDefinition exportImport;
+
+    /** Configuração avançada do CRUD: filtros/ordenação/paginação. */
+    private CrudDefinition crud;
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -82,12 +83,20 @@ public class EntityDefinition {
     public List<String> getOpenApiTags() { return openApiTags; }
     public void setOpenApiTags(List<String> openApiTags) { this.openApiTags = openApiTags; }
 
-    public List<String> getRoles() { return roles; }
-    public void setRoles(List<String> roles) { this.roles = roles; }
-
     public List<FilterDefinition> getFilters() { return filters; }
     public void setFilters(List<FilterDefinition> filters) { this.filters = filters; }
-    public boolean hasFilters() { return filters != null && !filters.isEmpty(); }
+
+    /**
+     * Filtros efetivos: mantém compatibilidade com entity.filters e adiciona crud.filterable.
+     */
+    public List<FilterDefinition> getEffectiveFilters() {
+        List<FilterDefinition> all = new ArrayList<>();
+        if (filters != null) all.addAll(filters);
+        if (crud != null && crud.getFilterable() != null) all.addAll(crud.getFilterable());
+        return all;
+    }
+
+    public boolean hasFilters() { return !getEffectiveFilters().isEmpty(); }
 
     public CacheDefinition getCache() { return cache; }
     public void setCache(CacheDefinition cache) { this.cache = cache; }
@@ -96,6 +105,14 @@ public class EntityDefinition {
     public ExportImportDefinition getExportImport() { return exportImport; }
     public void setExportImport(ExportImportDefinition exportImport) { this.exportImport = exportImport; }
     public boolean hasExportImport() { return exportImport != null && exportImport.isEnabled(); }
+
+    public CrudDefinition getCrud() { return crud; }
+    public void setCrud(CrudDefinition crud) { this.crud = crud; }
+    public boolean hasAdvancedCrud() {
+        return crud != null && (crud.isBulkOperations()
+            || (crud.getSortable() != null && !crud.getSortable().isEmpty())
+            || (crud.getFilterable() != null && !crud.getFilterable().isEmpty()));
+    }
 
     /** Retorna todas as queues: as da entidade + as das actions */
     public List<QueueDefinition> getAllQueues() {

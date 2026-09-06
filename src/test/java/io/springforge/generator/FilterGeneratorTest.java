@@ -1,19 +1,25 @@
 package io.springforge.generator;
 
-import io.springforge.model.*;
-import org.apache.maven.plugin.logging.Log;
-import org.apache.maven.plugin.logging.SystemStreamLog;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.plugin.logging.SystemStreamLog;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import io.springforge.model.CrudDefinition;
+import io.springforge.model.EntityDefinition;
+import io.springforge.model.FieldDefinition;
+import io.springforge.model.FilterDefinition;
+import io.springforge.model.ForgeDefinition;
+import io.springforge.model.ProjectConfig;
 
 class FilterGeneratorTest {
 
@@ -62,7 +68,7 @@ class FilterGeneratorTest {
         assertTrue(specFile.exists());
 
         String content = Files.readString(specFile.toPath());
-        assertTrue(content.contains("cb.like(cb.lower(root.get(\"name\"))"));
+        assertTrue(content.contains("cb.like(cb.lower(path(root, \"name\").as(String.class))"));
         assertTrue(content.contains("toLowerCase()"));
     }
 
@@ -165,7 +171,9 @@ class FilterGeneratorTest {
 
         File specFile = new File(outDir, "com/example/specification/ProductSpecification.java");
         String content = Files.readString(specFile.toPath());
-        assertTrue(content.contains("root.get(\"price\")"), "Deve usar targetField 'price'");
+        // GREATER_THAN_OR_EQUAL usa comparablePath(root, "price"), não path(root, "price")
+        assertTrue(content.contains("\"price\""), "Deve usar targetField 'price' na specification");
+        assertTrue(content.contains("greaterThanOrEqualTo"), "Deve gerar greaterThanOrEqualTo para GREATER_THAN_OR_EQUAL");
     }
 
     @Test
@@ -184,4 +192,37 @@ class FilterGeneratorTest {
         assertTrue(content.contains("toLowerCase() + \"%\""));
         assertFalse(content.contains("\"%\" + filter.getSku"));
     }
+
+
+    @Test
+    void shouldGenerateNestedRelationFilterAndSortableWhitelist() throws Exception {
+        FilterDefinition f = new FilterDefinition();
+        f.setName("categoryName");
+        f.setType("String");
+        f.setOperator("CONTAINS");
+        f.setTargetField("category.name");
+
+        ForgeDefinition def = buildDefinition(List.of());
+        EntityDefinition entity = def.getEntities().get(0);
+        CrudDefinition crud = new CrudDefinition();
+        crud.setSortable(List.of("name", "category.name"));
+        crud.setFilterable(List.of(f));
+        entity.setCrud(crud);
+
+        File outDir = tempDir.toFile();
+        generator.generate(def, entity, outDir);
+
+        File dtoFile = new File(outDir, "com/example/dto/ProductFilterDTO.java");
+        assertTrue(dtoFile.exists());
+        String dtoContent = Files.readString(dtoFile.toPath());
+        assertTrue(dtoContent.contains("categoryName"));
+
+        File specFile = new File(outDir, "com/example/specification/ProductSpecification.java");
+        String specContent = Files.readString(specFile.toPath());
+        assertTrue(specContent.contains("category.name"));
+        assertTrue(specContent.contains("JoinType.LEFT"));
+        assertTrue(specContent.contains("ALLOWED_SORTS"));
+        assertTrue(specContent.contains("sanitizePageable"));
+    }
+
 }

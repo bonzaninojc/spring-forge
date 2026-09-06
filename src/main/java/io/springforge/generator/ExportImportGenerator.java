@@ -27,9 +27,9 @@ public class ExportImportGenerator extends AbstractGenerator {
     public void generate(ForgeDefinition def, EntityDefinition entity, File outDir) throws MojoExecutionException {
         if (!entity.hasExportImport()) return;
 
-        String svcPkg = servicePkg(def);
-        String implPkg = serviceImplPkg(def);
-        String ctrlPkg = controllerPkg(def);
+        String svcPkg = servicePkg(def, entity);
+        String implPkg = serviceImplPkg(def, entity);
+        String ctrlPkg = controllerPkg(def, entity);
         String name = entity.getName();
 
         writeFile(buildServiceInterface(def, entity, svcPkg),
@@ -102,8 +102,8 @@ public class ExportImportGenerator extends AbstractGenerator {
 
     private CodeWriter buildServiceImpl(ForgeDefinition def, EntityDefinition entity, String implPkg) {
         String name = entity.getName();
-        String entPkg = entityPkg(def);
-        String repoPkg = repoPkg(def);
+        String entPkg = entityPkg(def, entity);
+        String repoPkg = repoPkg(def, entity);
         ExportImportDefinition config = entity.getExportImport();
         List<FieldDefinition> exportFields = resolveExportFields(entity);
         List<FieldDefinition> importFields = resolveImportFields(entity);
@@ -123,7 +123,7 @@ public class ExportImportGenerator extends AbstractGenerator {
          .imp("java.util.List")
          .imp("java.util.ArrayList");
 
-        String svcPkg = servicePkg(def);
+        String svcPkg = servicePkg(def, entity);
         w.imp(svcPkg + "." + name + "ExportImportService");
 
         // Import enums used in import fields
@@ -317,7 +317,7 @@ public class ExportImportGenerator extends AbstractGenerator {
 
     private CodeWriter buildController(ForgeDefinition def, EntityDefinition entity, String ctrlPkg) {
         String name = entity.getName();
-        String svcPkg = servicePkg(def);
+        String svcPkg = servicePkg(def, entity);
         ExportImportDefinition config = entity.getExportImport();
 
         String apiPath = entity.getApiPath() != null ? entity.getApiPath()
@@ -336,7 +336,7 @@ public class ExportImportGenerator extends AbstractGenerator {
 
         w.javadoc("Controller de export/import para " + name + ".\nGerado pelo Spring Forge.");
         w.line("@RestController")
-         .line("@RequestMapping(\"" + apiPath + "\")")
+         .line("@RequestMapping(\"" + javaString(apiPath) + "\")")
          .line("public class " + name + "ExportImportController {").blank();
         w.indent();
 

@@ -1,14 +1,36 @@
 <p align="center">
+  <svg viewBox="0 0 520 420" fill="none" xmlns="http://www.w3.org/2000/svg" width="200">
+    <defs>
+      <linearGradient id="gM" x1="10%" y1="0%" x2="90%" y2="100%"><stop offset="0%" stop-color="#42A5F5"/><stop offset="100%" stop-color="#1565C0"/></linearGradient>
+      <linearGradient id="gL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#64B5F6"/><stop offset="100%" stop-color="#1976D2"/></linearGradient>
+    </defs>
+    <rect x="148" y="210" width="224" height="52" rx="8" fill="url(#gM)"/>
+    <path d="M344 210 Q392 207 400 229 L372 229 Z" fill="url(#gM)"/>
+    <path d="M176 210 Q148 207 144 223 L168 225 Z" fill="url(#gM)"/>
+    <rect x="218" y="262" width="84" height="26" rx="5" fill="url(#gM)"/>
+    <rect x="192" y="288" width="136" height="24" rx="8" fill="url(#gM)"/>
+    <path d="M268 207 C288 165 320 112 350 72 C365 112 352 156 328 178 C310 196 268 207 268 207 Z" fill="url(#gL)"/>
+    <path d="M256 205 C236 166 220 114 214 76 C238 92 257 132 263 162 C267 180 256 205 256 205 Z" fill="url(#gM)"/>
+    <line x1="262" y1="210" x2="262" y2="288" stroke="url(#gL)" stroke-width="5" stroke-linecap="round"/>
+    <text x="260" y="358" font-family="'Segoe UI',Arial,sans-serif" font-size="44" font-weight="700" fill="#1E88E5" text-anchor="middle" letter-spacing="-1">spring</text>
+    <text x="260" y="358" font-family="'Segoe UI',Arial,sans-serif" font-size="44" font-weight="700" fill="#0A1628" text-anchor="middle" letter-spacing="-1" dx="92">forge</text>
+    <line x1="128" y1="378" x2="168" y2="378" stroke="#1E88E5" stroke-width="1.8"/>
+    <line x1="352" y1="378" x2="392" y2="378" stroke="#1E88E5" stroke-width="1.8"/>
+    <text x="260" y="386" font-family="'Segoe UI',Arial,sans-serif" font-size="15" font-weight="600" fill="#455A7A" text-anchor="middle" letter-spacing="4">MAVEN PLUGIN</text>
+  </svg>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white" alt="Spring Boot"/>
   <img src="https://img.shields.io/badge/Maven-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white" alt="Maven"/>
   <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java"/>
 </p>
 
-<h1 align="center">⚒️ Spring Forge Maven Plugin</h1>
+<h1 align="center">Spring Forge Maven Plugin</h1>
 
 <p align="center">
   <strong>Gera backend Spring Boot completo a partir de um único arquivo <code>forge.json</code></strong><br/>
-  Entity • Repository • Service • Controller • DTOs • Mapper • Migrations • RabbitMQ • OpenAPI • Spring Events • Scheduled Tasks • Security/RBAC • Cache • Export/Import • Tests • Frontend React
+  Entity • Repository • Service • Controller • DTOs • Mapper • Migrations • RabbitMQ • OpenAPI • Spring Events • Scheduled Tasks • Cache • Export/Import • Tests • Frontend React
 </p>
 
 ---
@@ -34,7 +56,6 @@ A proposta é simples: **você descreve suas entidades, campos, relacionamentos 
 | 📡 **Spring Events** | `ApplicationEvent` + `@EventListener` (sync/async) |
 | ⏰ **Scheduled Tasks** | `@Scheduled` com cron ou fixed rate |
 | 🗃️ **Flyway Migrations** | Scripts SQL gerados automaticamente |
-| 🔒 **Security/RBAC** | `@PreAuthorize` + SecurityConfig + roles por entidade/action |
 | 🧪 **Testes Unitários** | JUnit 5 + Mockito para Service e Controller |
 | 🔍 **Filtros Dinâmicos** | `POST /search` com operadores configuráveis (CONTAINS, IN, BETWEEN, IS_NULL...) |
 | 🚀 **Cache (Redis/Caffeine)** | `@Cacheable`, `@CacheEvict`, `@CachePut` com TTL configurável |
@@ -70,7 +91,7 @@ O plugin está disponível no [Maven Central](https://repo1.maven.org/maven2/io/
     <plugin>
       <groupId>io.github.bonzaninojc</groupId>
       <artifactId>spring-forge-maven-plugin</artifactId>
-      <version>1.0.0</version>
+      <version>1.2.0</version>
     </plugin>
   </plugins>
 </build>
@@ -264,7 +285,6 @@ Por padrão o código vai para `target/generated-sources/spring-forge/`. Após r
 | `generateSpringEvents` | Boolean | `false` | Gerar ApplicationEvent + Listeners |
 | `generateScheduled` | Boolean | `false` | Gerar `@Scheduled` para actions agendadas |
 | `generateTests` | Boolean | `false` | Gerar testes unitários (JUnit 5 + Mockito) |
-| `generateSecurity` | Boolean | `false` | Gerar Spring Security + RBAC |
 | `generateCache` | Boolean | `false` | Gerar Spring Cache (Redis ou Caffeine) |
 | `frontendDir` | String | `frontend/src` | Diretório de saída do frontend |
 
@@ -280,7 +300,6 @@ Por padrão o código vai para `target/generated-sources/spring-forge/`. Após r
 | `softDelete` | Boolean | `false` | Gera `deletedAt` + exclusão lógica |
 | `apiPath` | String | auto | Path da API REST |
 | `openApiTags` | Array | `[]` | Tags OpenAPI |
-| `roles` | Array | `[]` | Roles RBAC |
 | `filters` | Array | `[]` | Filtros de busca com operadores |
 | `cache` | Object | — | Configuração de cache |
 | `exportImport` | Object | — | Configuração de export/import |
@@ -451,7 +470,6 @@ Definido na entidade. Requer `generateCache: true` no project.
 | `scheduled` | Boolean | `false` | Gera `@Scheduled` |
 | `scheduledCron` | String | — | Cron expression |
 | `scheduledFixedRate` | Long | — | Fixed rate em ms |
-| `roles` | Array | `[]` | Roles RBAC específicas |
 
 ---
 
@@ -609,9 +627,6 @@ target/generated-sources/spring-forge/
     │   └── ProductStockConsumer.java
     ├── scheduler/
     │   └── ProductScheduledTasks.java
-    ├── security/
-    │   ├── SecurityConfig.java
-    │   └── AppRole.java
     └── exception/
         ├── ProductNotFoundException.java
         └── GlobalExceptionHandler.java
@@ -666,7 +681,6 @@ frontend/src/
     "generateSpringEvents": true,
     "generateScheduled": true,
     "generateTests": true,
-    "generateSecurity": true,
     "generateCache": true
   },
   "entities": [
@@ -677,7 +691,6 @@ frontend/src/
       "softDelete": true,
       "apiPath": "/api/v1/products",
       "openApiTags": ["Products"],
-      "roles": ["ADMIN", "MANAGER"],
       "cache": {
         "enabled": true,
         "ttlSeconds": 600,
@@ -712,7 +725,6 @@ frontend/src/
           "httpMethod": "POST",
           "apiPath": "/{id}/activate",
           "requiresId": true,
-          "roles": ["ADMIN"],
           "event": {
             "name": "ProductActivatedEvent",
             "generateListener": true,
