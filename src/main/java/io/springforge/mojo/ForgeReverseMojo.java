@@ -123,6 +123,7 @@ public class ForgeReverseMojo extends AbstractMojo {
                 EntityDefinition entity = new EntityDefinition();
                 entity.setName(NamingUtils.toPascalCase(tableName));
                 entity.setTableName(tableName);
+                entity.setSchema(tables.getString("TABLE_SCHEM"));
                 entity.setAuditable(false);
                 entity.setSoftDelete(false);
                 entities.add(entity);

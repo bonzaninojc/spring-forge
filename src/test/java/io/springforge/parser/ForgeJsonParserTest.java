@@ -61,6 +61,18 @@ class ForgeJsonParserTest {
     }
 
     @Test
+    void shouldValidateEntitySchemaAsSqlIdentifier() throws Exception {
+        String json = """
+            {
+              "project": { "basePackage": "com.app", "name": "App" },
+              "entities": [{ "name": "Product", "schema": "laboral-data", "fields": [] }]
+            }
+            """;
+        MojoExecutionException ex = assertThrows(MojoExecutionException.class, () -> parser.parse(writeJson(json)));
+        assertTrue(ex.getMessage().toLowerCase().contains("schema"));
+    }
+
+    @Test
     void shouldRejectDuplicateEntityNames() throws Exception {
         String json = """
             {

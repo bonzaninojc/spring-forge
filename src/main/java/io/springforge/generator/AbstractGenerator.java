@@ -108,7 +108,7 @@ public abstract class AbstractGenerator {
     }
     protected String entityPkg(ForgeDefinition def, String entityName) {
         return def.getProject().isModular()
-            ? moduleBasePkg(def, entityName) + ".domain"
+            ? moduleBasePkg(def, entityName) + (def.getProject().isSesiLaboral() ? ".entity" : ".domain")
             : entityPkg(def);
     }
 
@@ -156,7 +156,7 @@ public abstract class AbstractGenerator {
     }
     protected String controllerPkg(ForgeDefinition def, String entityName) {
         return def.getProject().isModular()
-            ? moduleBasePkg(def, entityName) + ".web"
+            ? moduleBasePkg(def, entityName) + (def.getProject().isSesiLaboral() ? ".controller" : ".web")
             : controllerPkg(def);
     }
 

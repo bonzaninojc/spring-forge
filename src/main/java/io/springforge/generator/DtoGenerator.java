@@ -67,6 +67,9 @@ public class DtoGenerator extends AbstractGenerator {
         // ManyToOne relations — add {fieldName}Id
         for (RelationDefinition r : entity.getRelations()) {
             if ("ManyToOne".equals(r.getType())) {
+                if (r.isRequired()) {
+                    w.line("@NotNull(message = \"" + NamingUtils.toHumanLabel(r.getFieldName()) + " é obrigatório\")");
+                }
                 w.line("private Long " + r.getFieldName() + "Id;").blank();
             }
         }

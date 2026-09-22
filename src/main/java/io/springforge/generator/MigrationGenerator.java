@@ -72,11 +72,15 @@ public class MigrationGenerator extends AbstractGenerator {
 
     private String buildSql(ForgeDefinition def, EntityDefinition entity, String table, SqlDialect dialect) {
         StringBuilder sb = new StringBuilder();
+        String qualifiedTable = qualifiedTableName(entity);
         sb.append("-- Migration gerada pelo Spring Forge Maven Plugin\n");
         sb.append("-- Entidade: ").append(entity.getName()).append("\n");
+        if (entity.getSchema() != null && !entity.getSchema().isBlank()) {
+            sb.append("-- Schema: ").append(entity.getSchema()).append("\n");
+        }
         sb.append("-- Dialeto: ").append(dialect.name()).append("\n\n");
 
-        sb.append("CREATE TABLE IF NOT EXISTS ").append(table).append(" (\n");
+        sb.append("CREATE TABLE IF NOT EXISTS ").append(qualifiedTable).append(" (\n");
         sb.append("    id ").append(dialect.idColumn()).append(",\n");
 
         for (FieldDefinition f : entity.getFields()) {
@@ -110,11 +114,11 @@ public class MigrationGenerator extends AbstractGenerator {
 
         entity.getFields().stream().filter(FieldDefinition::isUnique).forEach(f -> {
             String col = f.getColumnName() != null ? f.getColumnName() : NamingUtils.toSnakeCase(f.getName());
-            sb.append(dialect.uniqueIndex("uq_" + table + "_" + col, table, col)).append("\n\n");
+            sb.append(dialect.uniqueIndex("uq_" + table + "_" + col, qualifiedTable, col)).append("\n\n");
         });
 
         if (dialect.supportsComments()) {
-            sb.append("COMMENT ON TABLE ").append(table)
+            sb.append("COMMENT ON TABLE ").append(qualifiedTable)
               .append(" IS 'Tabela de ").append(entity.getName()).append(" - Spring Forge';\n");
         }
 
@@ -127,10 +131,10 @@ public class MigrationGenerator extends AbstractGenerator {
         String refTable = def.getEntities().stream()
             .filter(e -> r.getTargetEntity().equals(e.getName()))
             .findFirst()
-            .map(this::tableName)
+            .map(this::qualifiedTableName)
             .orElseGet(() -> NamingUtils.toSnakeCase(NamingUtils.toPlural(r.getTargetEntity())));
 
-        sb.append("ALTER TABLE ").append(table)
+        sb.append("ALTER TABLE ").append(qualifiedTableName(entity))
           .append(" ADD CONSTRAINT fk_").append(table).append("_").append(NamingUtils.toSnakeCase(r.getFieldName()))
           .append("\n    FOREIGN KEY (").append(fkCol).append(")")
           .append(" REFERENCES ").append(refTable).append("(id);\n\n");
@@ -138,6 +142,13 @@ public class MigrationGenerator extends AbstractGenerator {
 
     private String tableName(EntityDefinition entity) {
         return entity.getTableName() != null ? entity.getTableName() : NamingUtils.toSnakeCase(entity.getName());
+    }
+
+    private String qualifiedTableName(EntityDefinition entity) {
+        String table = tableName(entity);
+        return entity.getSchema() == null || entity.getSchema().isBlank()
+            ? table
+            : entity.getSchema() + "." + table;
     }
 
     private interface SqlDialect {

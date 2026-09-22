@@ -46,6 +46,10 @@ public class FrontendGenerator extends AbstractGenerator {
         if (!def.getProject().isGenerateFrontend()) return;
         if (!entity.shouldGenerate("frontend")) return;
 
+        if (def.getProject().isSesiLaboral()) {
+            new SesiLaboralFrontendGenerator(log).generate(def, entity, outDir);
+            return;
+        }
         File frontendDir = resolveFrontendDir(def, outDir);
 
         generateSlice(def, entity, frontendDir);
@@ -61,6 +65,10 @@ public class FrontendGenerator extends AbstractGenerator {
     public void generateGlobalFiles(ForgeDefinition def, File outDir) throws MojoExecutionException {
         if (!def.getProject().isGenerateFrontend()) return;
 
+        if (def.getProject().isSesiLaboral()) {
+            new SesiLaboralFrontendGenerator(log).generateGlobalFiles(def, outDir);
+            return;
+        }
         File frontendDir = resolveFrontendDir(def, outDir);
 
         generateApiClient(def, frontendDir);

@@ -58,4 +58,25 @@ class ModularArchitectureGeneratorTest {
         assertTrue(controller.contains("package com.example.modules.product.web;"));
         assertTrue(controller.contains("import com.example.modules.product.service.ProductService;"));
     }
+
+    @Test
+    void shouldApplySchemaToHexagonalJpaEntity() throws Exception {
+        ForgeDefinition def = new ForgeDefinition();
+        ProjectConfig project = new ProjectConfig();
+        project.setBasePackage("com.example");
+        project.setName("TestApp");
+        project.setArchitectureStyle(ArchitectureStyle.HEXAGONAL);
+        def.setProject(project);
+
+        EntityDefinition product = new EntityDefinition();
+        product.setName("Product");
+        product.setTableName("products");
+        product.setSchema("laboral");
+        def.setEntities(List.of(product));
+
+        new HexagonalPersistenceAdapterGenerator(log).generate(def, product, tempDir.toFile());
+
+        Path entity = tempDir.resolve("com/example/adapter/out/persistence/ProductJpaEntity.java");
+        assertTrue(Files.readString(entity).contains("@Table(name = \"products\", schema = \"laboral\")"));
+    }
 }

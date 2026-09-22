@@ -183,7 +183,7 @@ public class ForgeJsonParser {
         if (p.getArchitectureStyle() == null) {
             issues.add(error("INVALID_ARCHITECTURE", "project.architectureStyle", "Arquitetura inválida",
                 "O valor não foi reconhecido como arquitetura suportada.",
-                "Use LAYERED, HEXAGONAL ou MODULAR.", "MODULAR"));
+                "Use LAYERED, HEXAGONAL, MODULAR ou SESI_LABORAL.", "MODULAR"));
         }
         String db = p.getDatabase();
         if (db != null && !Set.of("postgres", "mysql", "mongodb", "h2").contains(db.toLowerCase())) {
@@ -277,6 +277,11 @@ public class ForgeJsonParser {
     }
 
     private void validateEntityMetadata(EntityDefinition e, String ep, List<ValidationIssue> issues) {
+        if (!blank(e.getSchema()) && !SQL_IDENTIFIER.matcher(e.getSchema()).matches()) {
+            issues.add(error("INVALID_ENTITY_SCHEMA", ep + ".schema", "Schema da entidade inválido",
+                "Valor atual: '" + e.getSchema() + "'. O schema deve ser um identificador SQL simples.",
+                "Use apenas letras, números e underscore, começando por letra ou underscore.", "public"));
+        }
         if (!blank(e.getApiPath()) && !API_PATH.matcher(e.getApiPath()).matches()) {
             issues.add(error("INVALID_ENTITY_API_PATH", ep + ".apiPath", "Path da entidade inválido",
                 "Valor atual: '" + e.getApiPath() + "'. O path precisa começar com / e não pode conter espaços/aspas.",

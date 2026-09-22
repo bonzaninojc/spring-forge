@@ -26,6 +26,9 @@ public class FrontendProjectGenerator {
     public void generate(ForgeDefinition def, File outDir) throws MojoExecutionException {
         if (!def.getProject().isGenerateFrontend()) return;
 
+        // SESI_LABORAL generates feature extensions for an existing Vue project.
+        // The host application owns package.json, Vite, main.ts and App.vue.
+        if (def.getProject().isSesiLaboral()) return;
         File frontendRoot = new File(outDir.getParentFile().getParentFile(),
                 def.getProject().getFrontendDir()).getParentFile();
 

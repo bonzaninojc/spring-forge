@@ -13,7 +13,7 @@ public class ProjectConfig {
 
     /**
      * Estilo de arquitetura gerado.
-     * Valores aceitos: LAYERED (padrão) | HEXAGONAL | MODULAR
+     * Valores aceitos: LAYERED (padrão) | HEXAGONAL | MODULAR | SESI_LABORAL
      * Default: LAYERED
      */
     private ArchitectureStyle architectureStyle = ArchitectureStyle.LAYERED;
@@ -172,6 +172,9 @@ public class ProjectConfig {
     /** Atalho: true se o estilo for HEXAGONAL */
     public boolean isHexagonal() { return ArchitectureStyle.HEXAGONAL == architectureStyle; }
 
-    /** Atalho: true se o estilo for MODULAR */
-    public boolean isModular() { return ArchitectureStyle.MODULAR == architectureStyle; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean isSesiLaboral() { return ArchitectureStyle.SESI_LABORAL == architectureStyle; }
+
+    /** Atalho: true para arquiteturas organizadas em módulos. */
+    public boolean isModular() { return ArchitectureStyle.MODULAR == architectureStyle || isSesiLaboral(); }
 }

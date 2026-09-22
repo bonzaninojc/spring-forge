@@ -279,7 +279,7 @@ Por padrão o código vai para `target/generated-sources/spring-forge/`. Após r
 | `database` | String | `postgres` | `postgres`, `mysql`, `mongodb`, `h2` |
 | `generateMigrations` | Boolean | `false` | Gerar scripts Flyway |
 | `generateMappers` | Boolean | `true` | Gerar Mappers MapStruct |
-| `generateFrontend` | Boolean | `false` | Gerar frontend React (Vite+MUI+Redux) |
+| `generateFrontend` | Boolean | `false` | Gerar frontend React (Vite+MUI+Redux), ou Vue/Vuetify no perfil SESI_LABORAL |
 | `generateRabbitMQ` | Boolean | `false` | Gerar config e classes RabbitMQ |
 | `generateOpenApi` | Boolean | `false` | Gerar anotações SpringDoc/OpenAPI |
 | `generateSpringEvents` | Boolean | `false` | Gerar ApplicationEvent + Listeners |
@@ -296,6 +296,7 @@ Por padrão o código vai para `target/generated-sources/spring-forge/`. Após r
 |-------|------|---------|-----------| 
 | `name` | String | **obrigatório** | Nome em PascalCase, ex: `Product` |
 | `tableName` | String | auto (snake_case) | Nome da tabela no banco |
+| `schema` | String | padrão da conexão | Schema do banco onde a tabela da entidade está localizada |
 | `auditable` | Boolean | `true` | Gera `createdAt` e `updatedAt` |
 | `softDelete` | Boolean | `false` | Gera `deletedAt` + exclusão lógica |
 | `apiPath` | String | auto | Path da API REST |
@@ -687,6 +688,7 @@ frontend/src/
     {
       "name": "Product",
       "tableName": "products",
+      "schema": "public",
       "auditable": true,
       "softDelete": true,
       "apiPath": "/api/v1/products",
@@ -805,3 +807,56 @@ O parser agora reporta propriedades desconhecidas com sugestões. Execute `mvn s
 ## 📄 Licença
 
 Este projeto está sob a licença MIT.
+
+### Geração Sesi Laboral
+
+Na tela **Projeto → Arquitetura**, selecione **Sesi Laboral (Spring Boot + Vue)**.
+Ative **Frontend Vue** para gerar uma extensão no frontend existente. Salve e gere
+normalmente; o preview **Frontend** permite inspecionar os arquivos antes da geração.
+
+```json
+{
+  "project": {
+    "name": "LaboralApp",
+    "basePackage": "com.example.laboral",
+    "architectureStyle": "SESI_LABORAL",
+    "generateFrontend": true,
+    "frontendDir": "frontend/src"
+  },
+  "entities": [{
+    "name": "Unidade",
+    "apiPath": "/api/unidades",
+    "fields": [{ "name": "descricao", "type": "String", "required": true }]
+  }]
+}
+```
+
+O backend reutiliza os geradores Spring Data/JPA, DTO, mapper, service/interface e
+implementação, controller, filtros e migrations existentes. Cada entidade fica em
+`{basePackage}.modules.{entidade}`, com pacotes `entity` e `controller`, seguindo a
+organização do Sesi Laboral. As relações entre módulos usam os respectivos pacotes.
+O contrato CRUD do Forge é preservado, incluindo paginação Spring Data e `apiPath`.
+
+O frontend gera somente os arquivos da feature: `models`, `services`, tabela,
+telas de listar/cadastrar/editar e uma coleção de rotas em
+`router/routes/generated.ts`. Também gera as seções administrativas de cada entidade em
+`navigation/vertical/generated.ts`, com as opções **Cadastrar** e **Listar**. Ele reutiliza os componentes já existentes do Sesi Laboral:
+`DashboardLayout`, `CustomInput`, `LoadingOverlay`, `FeedbackModal` e `ConfirmModal`.
+Não cria nem altera `package.json`, `vite.config.ts`, `main.ts`, `App.vue`,
+`baseService.ts` ou componentes compartilhados do projeto alvo.
+
+Quando encontrar o `router/index.ts` no padrão do Sesi Laboral, o gerador importa
+automaticamente `generatedRoutes` e inclui `...generatedRoutes` após
+`...privateRoutes`, preservando as demais rotas e guards. Da mesma forma, integra
+`generatedNavMenuItems` em `navigation/vertical/index.ts`, preservando Empresas,
+Orientadores, Usuários e outras seções existentes. A aplicação continua responsável
+por autenticação, permissões, PWA, cache offline e configuração do Axios. Os demais
+estilos continuam gerando React.
+
+Os filtros declarados em `entity.filters` ou `entity.crud.filterable` também são
+gerados no padrão das páginas de Usuários e Orientadores: a página mantém os campos,
+aplica debounce de 600 ms e chama `applyFilters()` na tabela. A tabela volta para a
+primeira página e envia `page`, `size`, `sortBy`, `ascending` e os filtros juntos em
+`POST {apiPath}/search`. No backend Sesi Laboral, o `FilterDTO` recebe esses campos
+de paginação, cria o `Pageable` e o service executa a `Specification` com os
+operadores configurados no `forge.json`.

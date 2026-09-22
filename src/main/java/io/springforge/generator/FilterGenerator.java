@@ -50,6 +50,11 @@ public class FilterGenerator extends AbstractGenerator {
         CodeWriter w = new CodeWriter();
 
         w.imp("java.util.List");
+        if (def.getProject().isSesiLaboral()) {
+            w.imp("org.springframework.data.domain.PageRequest")
+             .imp("org.springframework.data.domain.Pageable")
+             .imp("org.springframework.data.domain.Sort");
+        }
 
         for (FilterDefinition f : entity.getEffectiveFilters()) {
             String imp = NamingUtils.toJavaImport(f.getType());
@@ -65,6 +70,16 @@ public class FilterGenerator extends AbstractGenerator {
             String type = resolveFilterFieldType(f, op);
             w.line("private " + type + " " + f.getName() + ";");
         }
+        if (def.getProject().isSesiLaboral()) {
+            CrudDefinition crud = entity.getCrud();
+            int defaultSize = crud != null ? Math.max(1, crud.getDefaultPageSize()) : 20;
+            String defaultSort = crud != null && crud.getDefaultSort() != null && !crud.getDefaultSort().isBlank()
+                ? crud.getDefaultSort() : "id";
+            w.line("private int page = 0;")
+             .line("private int size = " + defaultSize + ";")
+             .line("private String sortBy = \"" + javaString(defaultSort) + "\";")
+             .line("private boolean ascending = true;");
+        }
         w.blank();
 
         for (FilterDefinition f : entity.getEffectiveFilters()) {
@@ -73,6 +88,25 @@ public class FilterGenerator extends AbstractGenerator {
             String cap = NamingUtils.toPascalCase(f.getName());
             w.line("public " + type + " get" + cap + "() { return " + f.getName() + "; }")
              .line("public void set" + cap + "(" + type + " " + f.getName() + ") { this." + f.getName() + " = " + f.getName() + "; }");
+        }
+
+        if (def.getProject().isSesiLaboral()) {
+            w.blank()
+             .line("public int getPage() { return page; }")
+             .line("public void setPage(int page) { this.page = page; }")
+             .line("public int getSize() { return size; }")
+             .line("public void setSize(int size) { this.size = size; }")
+             .line("public String getSortBy() { return sortBy; }")
+             .line("public void setSortBy(String sortBy) { this.sortBy = sortBy; }")
+             .line("public boolean isAscending() { return ascending; }")
+             .line("public void setAscending(boolean ascending) { this.ascending = ascending; }")
+             .blank()
+             .line("public Pageable toPageable() {")
+             .indent()
+             .line("String property = sortBy == null || sortBy.isBlank() ? \"id\" : sortBy;")
+             .line("Sort.Direction direction = ascending ? Sort.Direction.ASC : Sort.Direction.DESC;")
+             .line("return PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(direction, property));")
+             .unindent().line("}");
         }
 
         w.unindent().line("}");

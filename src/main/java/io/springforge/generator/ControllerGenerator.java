@@ -85,12 +85,18 @@ public class ControllerGenerator extends AbstractGenerator {
             w.imp(dtoPkg + "." + name + "FilterDTO");
             w.line("/** POST " + apiPath + "/search — busca com filtros */")
              .line("@PostMapping(\"/search\")")
-             .line("public ResponseEntity<Page<" + name + "ResponseDTO>> search(")
-             .line("        @RequestBody " + name + "FilterDTO filter,")
-             .line("        @PageableDefault(size = " + defaultPageSize + ", sort = \"" + javaString(defaultSort) + "\") Pageable pageable) {")
-             .indent()
-             .line("return ResponseEntity.ok(service.search(filter, pageable));")
-             .unindent().line("}").blank();
+             .line("public ResponseEntity<Page<" + name + "ResponseDTO>> search(");
+            if (def.getProject().isSesiLaboral()) {
+                w.line("        @RequestBody " + name + "FilterDTO filter) {")
+                 .indent()
+                 .line("return ResponseEntity.ok(service.search(filter, filter.toPageable()));");
+            } else {
+                w.line("        @RequestBody " + name + "FilterDTO filter,")
+                 .line("        @PageableDefault(size = " + defaultPageSize + ", sort = \"" + javaString(defaultSort) + "\") Pageable pageable) {")
+                 .indent()
+                 .line("return ResponseEntity.ok(service.search(filter, pageable));");
+            }
+            w.unindent().line("}").blank();
         }
 
         // GET /{id}

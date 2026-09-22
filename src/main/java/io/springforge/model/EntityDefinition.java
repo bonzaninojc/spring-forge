@@ -10,6 +10,7 @@ public class EntityDefinition {
 
     private String name;
     private String tableName;
+    private String schema;
     private List<FieldDefinition> fields = new ArrayList<>();
     private List<RelationDefinition> relations = new ArrayList<>();
     private List<ActionDefinition> actions = new ArrayList<>();   // ← NOVO
@@ -44,6 +45,9 @@ public class EntityDefinition {
 
     public String getTableName() { return tableName; }
     public void setTableName(String tableName) { this.tableName = tableName; }
+
+    public String getSchema() { return schema; }
+    public void setSchema(String schema) { this.schema = schema; }
 
     public List<FieldDefinition> getFields() { return fields; }
     public void setFields(List<FieldDefinition> fields) { this.fields = fields; }
@@ -92,7 +96,12 @@ public class EntityDefinition {
     public List<FilterDefinition> getEffectiveFilters() {
         List<FilterDefinition> all = new ArrayList<>();
         if (filters != null) all.addAll(filters);
-        if (crud != null && crud.getFilterable() != null) all.addAll(crud.getFilterable());
+        if (crud != null && crud.getFilterable() != null) {
+            for (FilterDefinition filter : crud.getFilterable()) {
+                boolean alreadyDefined = all.stream().anyMatch(existing -> existing.getName().equals(filter.getName()));
+                if (!alreadyDefined) all.add(filter);
+            }
+        }
         return all;
     }
 

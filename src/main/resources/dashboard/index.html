@@ -236,6 +236,7 @@
   // ════════════════════════════════════════
   const LAYERS = [
     {id:'all',        label:'Todos'},
+    {id:'frontend',   label:'Frontend'},
     {id:'entity',     label:'Entity'},
     {id:'controller', label:'Controller'},
     {id:'service',    label:'Service'},
@@ -632,7 +633,7 @@
     const [pomPlan,setPomPlan]=useState(null);
     const [pomLoading,setPomLoading]=useState(false);
     const flags=['generateMigrations','generateMappers','generateFrontend','generateRabbitMQ','generateOpenApi','generateSpringEvents','generateScheduled','generateTests','generateCache'];
-    const labels={generateMigrations:'Migrations',generateMappers:'Mappers',generateFrontend:'Frontend React',generateRabbitMQ:'RabbitMQ',generateOpenApi:'OpenAPI',generateSpringEvents:'Spring Events',generateScheduled:'Scheduled',generateTests:'Testes',generateCache:'Cache'};
+    const labels={generateMigrations:'Migrations',generateMappers:'Mappers',generateFrontend:project.architectureStyle==='SESI_LABORAL'?'Frontend Vue':'Frontend React',generateRabbitMQ:'RabbitMQ',generateOpenApi:'OpenAPI',generateSpringEvents:'Spring Events',generateScheduled:'Scheduled',generateTests:'Testes',generateCache:'Cache'};
     const loadPomPlan=async()=>{setPomLoading(true);try{const r=await api.pomPreview({...forge,project});setPomPlan(r);}catch(e){setPomPlan({error:'Não foi possível calcular dependências'});}setPomLoading(false);};
     useEffect(()=>{loadPomPlan();},[project.generateMappers,project.generateOpenApi,project.generateRabbitMQ,project.generateCache,project.generateMigrations,project.generateTests,project.database]);
     return (<div>
@@ -645,9 +646,10 @@
             {project.basePackage&&!/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/.test(project.basePackage)&&<span className="warn">⚠ Pacote inválido</span>}
           </div>
           <div className="form-group"><label>Banco de Dados</label><select value={project.database||'postgres'} onChange={e=>set('database',e.target.value)}><option value="postgres">PostgreSQL</option><option value="mysql">MySQL</option><option value="h2">H2</option><option value="mongodb">MongoDB</option></select></div>
-          <div className="form-group"><label>Arquitetura</label><select value={project.architectureStyle||'LAYERED'} onChange={e=>set('architectureStyle',e.target.value)}><option value="LAYERED">Layered (Camadas)</option><option value="HEXAGONAL">Hexagonal (Ports & Adapters)</option><option value="MODULAR">Modular (por domínio)</option></select></div>
+          <div className="form-group"><label>Arquitetura</label><select value={project.architectureStyle||'LAYERED'} onChange={e=>set('architectureStyle',e.target.value)}><option value="LAYERED">Layered (Camadas)</option><option value="HEXAGONAL">Hexagonal (Ports & Adapters)</option><option value="MODULAR">Modular (por domínio)</option><option value="SESI_LABORAL">Sesi Laboral (Spring Boot + Vue)</option></select></div>
         </div>
       </div>
+      {project.architectureStyle==='SESI_LABORAL' && <p className="muted">Módulos Spring Boot com entity, repository, service, dto, mapper e controller. Ative Frontend Vue para gerar Vue 3, Vuetify, Pinia e Axios.</p>}
       <div className="card">
         <h3>🔧 Features</h3>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:6}}>
@@ -946,6 +948,9 @@
             {entity.name&&!/^[A-Z][a-zA-Z0-9]*$/.test(entity.name)&&<span className="warn">⚠ PascalCase</span>}
           </div>
           <div className="form-group"><label>Tabela</label><input value={entity.tableName||''} onChange={e=>set('tableName',e.target.value)} placeholder="(auto)"/></div>
+          <div className="form-group"><label>Schema</label><input value={entity.schema||''} onChange={e=>set('schema',e.target.value)} placeholder="public"/>
+            {entity.schema&&!/^[A-Za-z_][A-Za-z0-9_]*$/.test(entity.schema)&&<span className="warn">⚠ Identificador SQL inválido</span>}
+          </div>
           <div className="form-group"><label>API Path</label><input value={entity.apiPath||''} onChange={e=>set('apiPath',e.target.value)} placeholder="/api/v1/products"/>
             {entity.apiPath&&!entity.apiPath.startsWith('/')&&<span className="warn">⚠ Deve iniciar com /</span>}
           </div>

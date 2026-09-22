@@ -69,8 +69,12 @@ public class EntityGenerator extends AbstractGenerator {
 
         // Anotações da classe
         String table = entity.getTableName() != null ? entity.getTableName() : NamingUtils.toSnakeCase(entity.getName());
+        String schema = entity.getSchema();
+        String tableAnnotation = "@Table(name = \"" + javaString(table) + "\""
+            + (schema != null && !schema.isBlank() ? ", schema = \"" + javaString(schema) + "\"" : "")
+            + ")";
         w.line("@Entity")
-         .line("@Table(name = \"" + javaString(table) + "\")");
+         .line(tableAnnotation);
 
         if (entity.isAuditable()) w.line("");
 

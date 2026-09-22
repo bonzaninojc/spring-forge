@@ -96,10 +96,11 @@
           "enum": [
             "LAYERED",
             "HEXAGONAL",
-            "MODULAR"
+            "MODULAR",
+            "SESI_LABORAL"
           ],
           "default": "LAYERED",
-          "description": "Estilo de arquitetura gerado"
+          "description": "Estilo de arquitetura gerado. SESI_LABORAL usa módulos Spring Boot e frontend Vue/Vuetify quando habilitado."
         },
         "outputDir": {
           "type": "string",
@@ -134,6 +135,11 @@
         },
         "tableName": {
           "type": "string"
+        },
+        "schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "description": "Schema do banco onde a tabela da entidade está localizada"
         },
         "auditable": {
           "type": "boolean",

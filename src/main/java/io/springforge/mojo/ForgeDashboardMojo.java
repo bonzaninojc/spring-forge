@@ -387,13 +387,23 @@ public class ForgeDashboardMojo extends AbstractMojo {
                         case "mapper"     -> new MapperGenerator(getLog());
                         case "filter"     -> new FilterGenerator(getLog());
                         case "openapi"    -> new OpenApiEnricher(getLog());
+                        case "frontend"   -> null;
                         case "templates"  -> new CustomTemplateGenerator(getLog(), project.getBasedir());
                         default           -> new EntityGenerator(getLog());
                     };
-                    generators.add(gen);
+                    if (gen != null) generators.add(gen);
                 }
                 for (AbstractGenerator gen : generators) {
                     gen.generate(def, targetEntity, tempDir.toFile());
+                }
+
+                if ("frontend".equals(layer) || (def.getProject().isSesiLaboral() && "all".equals(layer))) {
+                    // Keep preview output inside its temporary directory, regardless of saved paths.
+                    def.getProject().setFrontendDir("frontend/src");
+                    File frontendOut = tempDir.resolve("generated-sources/spring-forge").toFile();
+                    FrontendGenerator frontend = new FrontendGenerator(getLog());
+                    frontend.generate(def, targetEntity, frontendOut);
+                    frontend.generateGlobalFiles(def, frontendOut);
                 }
 
                 // Coleta todos os arquivos de código/texto gerados

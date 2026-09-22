@@ -41,5 +41,8 @@ public enum ArchitectureStyle {
      *          └── web          ← controller REST do módulo
      * </pre>
      */
-    MODULAR
+    MODULAR,
+
+    /** Módulos Spring Boot e frontend Vue/Vuetify inspirado no Sesi Laboral. */
+    SESI_LABORAL
 }

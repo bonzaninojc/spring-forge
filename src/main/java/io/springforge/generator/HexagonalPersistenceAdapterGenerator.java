@@ -65,6 +65,7 @@ public class HexagonalPersistenceAdapterGenerator extends AbstractGenerator {
     private CodeWriter buildJpaEntity(ForgeDefinition def, EntityDefinition entity, String pkg) {
         String name = entity.getName();
         String table = entity.getTableName() != null ? entity.getTableName() : NamingUtils.toSnakeCase(name);
+        String schema = entity.getSchema();
         CodeWriter w = new CodeWriter();
 
         w.imp("jakarta.persistence.*")
@@ -98,8 +99,11 @@ public class HexagonalPersistenceAdapterGenerator extends AbstractGenerator {
             "Gerado pelo Spring Forge — Arquitetura Hexagonal."
         );
 
+        String tableAnnotation = "@Table(name = \"" + javaString(table) + "\""
+            + (schema != null && !schema.isBlank() ? ", schema = \"" + javaString(schema) + "\"" : "")
+            + ")";
         w.line("@Entity")
-         .line("@Table(name = \"" + table + "\")");
+         .line(tableAnnotation);
         w.line("public class " + name + "JpaEntity implements Serializable {")
          .blank();
         w.indent();
